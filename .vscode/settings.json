@@ -1,5 +1,6 @@
 {
     "files.associations": {
-        "INTPRINT.C": "cpp"
+        "INTPRINT.C": "cpp",
+        "compare": "c"
     }
 }

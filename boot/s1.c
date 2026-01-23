@@ -14,7 +14,7 @@
  * Kill the program
  */
 
-// dont assume any of this code is even valid C
+// dont assume any of this code is even close to valid C
 
 // lets pretend there is a library called
 #include <bios.h>
@@ -45,6 +45,10 @@ int main() { // i mean this isn't main but this also isn't
     setInterruptFlags();
 
     r8b = 0; // yeah just throw it here
+    // this would fail in real mode btw
+    // for compatibility reasons things like r8-16 dont exist
+    // until you enable protected mode
+    // here we have "not a real program yet" mode so we're fine
 
     // reset disk controller
     ah = 0x00;
@@ -104,9 +108,9 @@ int main() { // i mean this isn't main but this also isn't
     goto sector_read_hell;
 
     final:
-    ljump(0x0100, 0x0000);
+    ljump(0x0100, 0x0000); // i didn't have to debug this in s1.s several times fuck you
 
-    // because this is fucky we put vars here
+    // because this is fucky pseudoassembly we put vars here
 
     uint8_t boot_drive = 0;
     boot_drive = dl; // save boot drive
