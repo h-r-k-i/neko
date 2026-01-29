@@ -1,0 +1,13 @@
+I fucking **KNOW** these aren't drivers. These would better be
+split from /drivers and /drivers/include into /lib and /inc but
+I decided I don't care that much. This bootloader fucking sucks.
+I *hate* this fucking bootloader. This is a scourge upon every-
+thing that I love. Fuck this. Fuck 286. Fuck CR0. Fuck QEMU.
+
+anyway yeah these aren't drivers these are just helpers. Well,
+the IDE file (./SHITIDE.c, ./include/SHITIDE.h) are actually
+drivers even if simple as hell and abandoned the moment I'm
+permitted to.
+
+anyway tl;dr: shut your fucking mouth.
+- Haruki Tokumei (not my real name but eh)

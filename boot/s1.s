@@ -26,7 +26,7 @@ start:
     mov fs, ax
     mov gs, ax
     mov ss, ax
-    mov SI, DAP
+    mov si, DAP
     mov sp, 0x7000
 
     ; re-enable interrupts
@@ -45,13 +45,17 @@ start:
     int 0x13
 
     jc sector_read_hell
-    test bx, 0xAA55
+    cmp bx, 0xAA55
     jne sector_read_hell
     test cx, 1
     jz sector_read_hell
 
     ; Now that we've confirmed that we can use the modern disk reader,
     ; do that to read into s2
+
+    ; FIRST: push SC onto the stack so that we know we can use LBA
+    mov dx, 0x5343
+    push dx
 
     mov si, DAP
     mov ah, 0x42
@@ -65,6 +69,10 @@ start:
     sector_read_hell:
         ; now that we've confirmed that we can't use the modern disk reader,
         ; use the legacy one to read into s2
+        ; FIRST: push FL onto the stack so that we know we can't use LBA
+        mov dx, 0x464C
+        push dx
+
         mov ah, 0x02
         mov al, 17
         mov ch, 0
@@ -79,22 +87,22 @@ start:
         int 0x13
         jnc final
         
-        inc bl ; given bx is fucking obliterated I think this would just hang if there was an actual issue.
-        ; the solution is to ignore
-        test bl, 3 ; if we failed 3x just give up
-        je hang
+        inc byte [retry_count]
+        cmp byte [retry_count], 3
+        jae hang
         jmp sector_read_hell
 
     final:
         ; if all passes jump into s2
-        jmp 0x0100:0x0000
+        mov dl, [boot_drive]
+        jmp 0x0000:0x1000
 
     hang:
         cli
         nop
         mov ah, 0x0E
         nop
-        mov al, '?'
+        mov al, '?' ; why q mark? uhhhhhhhhhhhhhhh
         nop
         mov bh, 0
         nop
@@ -102,15 +110,19 @@ start:
         int 0x10
         hlt
         jmp hang
+    
+    hang_dbg:
+        hlt
+        jmp hang_dbg
 
     boot_drive: db 0
+    retry_count: db 0
 
     DAP:
         db 0x10
         db 0
         dw 17
-        dw 0x0000
-        dw 0x0100
+        dd 0x00001000
         dq 1
     
     times 510 - ($ - $$) db 0
