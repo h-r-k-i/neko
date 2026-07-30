@@ -34,7 +34,7 @@ int main() {
 
     for (uint16_t ID = 0; ID < count; ID++) {
         fread(&data, sizeof data, 1, file);
-        printf("Memory Map Entry %" PRIu16 ":\n", ID);
+        printf("Memory Map Entry %" PRIu16 ":\n", ID + 1);
         printf("Address: 0x%016" PRIx64 "\n", data.ADDRESS);
         printf("Size: %" PRIu64 " bytes\n", data.SIZE);
         printf("Type: ");

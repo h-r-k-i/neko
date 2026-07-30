@@ -3,7 +3,7 @@
 
 %if 0
  FILENAME:      ./boot/s2.s
- NAME:          NekoDOS Bootloader, Stage 2
+ NAME:          SBL, Stage 2
  DESCRIPTION:   Sets up the device for booting into the kernel,
                 exits Real Mode, and boots Stage 3.
  AUTHOR:        Haruki Tokumei, Haruki Media Group
@@ -293,23 +293,6 @@ start:
         aftsA20:
         jmp stage5
 
-    A20set:
-        ; I know who you are.
-        mov ah, 0x13
-        mov al, 0x01
-        mov bh, 0
-        mov bl, 0x07
-        mov dh, [row]
-        xor dl, dl
-        mov cx, m7l
-        push ds
-        pop es
-        mov bp, m7
-        int 0x10
-        inc dh
-        mov [row], dh
-        jmp stage5
-
     ; S5: Disable interrupts.
     stage5:
         nop ; lol part 2: electric boogaloo
@@ -327,9 +310,9 @@ start:
 
         ; Before we enter Protected Mode let's set up VGA
         mov ah, 0x00
-        mov al, 0x09    ; 80x25 although 80x50 may work
+        mov al, 0x03    ; 80x25 although 80x50 may work
         int 0x10        ; but QEMU craps out if I try
-        ; 0x09 for 132x50, 0x05 for 80x50
+        ; 0x09 for 132x50, 0x05 for 80x50, 0x03 for 80x25
 
         ;; and also do a check for what our disks are
         xor dx, dx
@@ -389,12 +372,13 @@ start:
         mov al, 0xFF
         out 0xA1, al
         out 0x21, al
+        sti
 
 
     ; S8: Jump to Stage 3
     stage8:
         cli
-        o32 mov esp, 0x7000     ; RM Stack Top
+        o32 mov esp, 0x7000 - 1 ; RM Stack Top
         o32 mov ebx, smap_size  ; Pointer to SMAP
         o32 mov eax, 0x4F4B454E ; NEKO (Magic Number)
         ; jmp hang2

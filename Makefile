@@ -4,8 +4,11 @@ AS  = ~/opt/cross/bin/x86_64-elf-as
 LD  = ~/opt/cross/bin/x86_64-elf-ld
 OBJ = ~/opt/cross/bin/x86_64-elf-objcopy
 
-CFLAGS = -ffreestanding -O2 -Wall -Wextra
-CXXFLAGS = -ffreestanding -O2 -Wall -Wextra -fno-exceptions -fno-rtti
+CFLAGS = -ffreestanding -O2 -Wall -Wextra \
+    	 -fno-omit-frame-pointer -fno-stack-protector -fno-pie \
+		 -nostdlib -mno-red-zone -mcmodel=large
+CXXFLAGS = -ffreestanding -O2 -Wall -Wextra -fno-exceptions \
+		   -fno-rtti
 LDFLAGS = -nostdlib --oformat binary
 
 BUILD_BIN = build
@@ -14,6 +17,7 @@ BOOT1_ASM = ./boot/s1.s
 BOOT2_ASM = ./boot/s2.s
 BOOT3_ASM = ./boot/s3/s3.s
 BOOT3_C	  = ./boot/s3/s3.c
+BOOT3_D   = $(wildcard ./boot/s3/drivers/*.c)
 KERNEL_C  = ./bin/neko.c
 KERNEL_CPP =
 KERNEL_ASM =
@@ -27,12 +31,23 @@ KERNEL_BIN = kernel.bin
 OS_IMG     = os.img
 
 BOOT3_OBJ  = ./$(BUILD_BIN)/s3.o
-BOOT3_COBJ = ./$(BUILD_BIN)/s3c.o
+BOOT3_COBJ = ./$(BUILD_BIN)/s3.c.o
+BOOT3_DRIV = $(patsubst ./boot/s3/drivers/%.c,./$(BUILD_BIN)/%.c.o, $(BOOT3_D))
 BOOT3_ELF  = ./$(BUILD_BIN)/s3.elf
 
 BOOT3_LD = ./boot/s3/s3.ld
 
+BOOT3_IDT = ./boot/s3/drivers/IDT.s
+BOOT3_IDTO = ./$(BUILD_BIN)/IDT.o
 
+BOOT3_LONG = ./boot/s3/drivers/longmode.s
+BOOT3_LONGO = ./$(BUILD_BIN)/longmode.o
+
+INITKERNEL = ./bin/nekotest.s
+IK_OBJ = ./$(BUILD_BIN)/nekotest.o
+
+#all:
+#	echo $(BOOT3_COBJ)
 
 all: $(BUILD_BIN) $(OS_IMG)
 
@@ -48,11 +63,21 @@ $(BOOT2_BIN): $(BOOT2_ASM)
 $(BOOT3_OBJ): $(BOOT3_ASM)
 	nasm -f elf32 $< -o $@
 
-$(BOOT3_COBJ): $(BOOT3_C)
-	$(CC) -ffreestanding -m32 -c $< -o $@
 
-$(BOOT3_ELF): $(BOOT3_OBJ) $(BOOT3_COBJ) $(BOOT3_LD)
-	$(LD) -m elf_i386 -T $(BOOT3_LD) -o $@ $(BOOT3_OBJ) $(BOOT3_COBJ)
+$(BOOT3_IDTO): $(BOOT3_IDT)
+	nasm -f elf32 $< -o $@
+
+$(BOOT3_LONGO): $(BOOT3_LONG)
+	nasm -f elf32 $< -o $@
+
+./$(BUILD_BIN)/s3.c.o: $(BOOT3_C)
+	$(CC) -ffreestanding -m32 -I./boot/s3/include -I/home/renee/opt/cross/bin/lib/gcc/x86_64-elf/15.2.0/include -c $< -o $@
+
+./$(BUILD_BIN)/%.c.o: ./boot/s3/drivers/%.c
+	$(CC) -ffreestanding -m32 -I./boot/s3/include -I/home/renee/opt/cross/bin/lib/gcc/x86_64-elf/15.2.0/include -c $< -o $@
+
+$(BOOT3_ELF): $(BOOT3_OBJ) $(BOOT3_COBJ) $(BOOT3_DRIV) $(BOOT3_IDTO) $(BOOT3_LD) $(BOOT3_LONGO)
+	$(LD) -m elf_i386 -T $(BOOT3_LD) -o $@ $(BOOT3_OBJ) $(BOOT3_COBJ) $(BOOT3_DRIV) $(BOOT3_IDTO) $(BOOT3_LONGO)
 
 $(BOOT3_BIN): $(BOOT3_ELF)
 	$(OBJ) -O binary $< $@

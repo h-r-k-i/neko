@@ -3,7 +3,7 @@
 
 %if 0
  FILENAME:      ./boot/s1.s
- NAME:          NekoDOS Bootloader, Stage 1
+ NAME:          SBL, Stage 1
  DESCRIPTION:   Sets basic functionality and boots Stage 2
  AUTHOR:        Haruki Tokumei, Haruki Media Group
  DATE:          22 January 2026
