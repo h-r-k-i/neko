@@ -119,4 +119,16 @@ info/*
 *.bin
 *.img
 
+# other build files
+*.D
+*.d
+
+# random files here and there
+SHITIDE.s
+qemu.log
+MemMapReader
+idtbdr.k
+IDTBuilder
+boot.bin.D
+
 # End of https://www.toptal.com/developers/gitignore/api/visualstudiocode,linux,c,c++,assembler

@@ -196,13 +196,24 @@ start:
         mov dl, [boot_drive]
         int 0x13
 
-        ; Get the value we stored at the beginning of S2
-        mov dx, [lba_state]
-        cmp dx, 0x464C
-        je sector_read_hell
-        cmp dx, 0x5343
-        jne hang    ; if we can get neither FL nor SC something got fucked up
-        ; that or I fucked up
+        ; Check if modern disk reading is permissible
+
+        mov ah, 0x41
+        mov bx, 0x55AA
+        mov dl, [boot_drive]
+        int 0x13
+
+        jc sector_read_hell
+        cmp bx, 0xAA55
+        jne sector_read_hell
+        test cx, 1
+        jz sector_read_hell
+
+        ; cmp dx, 0x464C
+        ; je sector_read_hell
+        ; cmp dx, 0x5343
+        ; jne hang    ; if we can get neither FL nor SC something got fucked up
+        ; ; that or I fucked up
 
         ; Now that we've confirmed that we can use the modern disk reader,
         ; do that to read into s3 (this has just the number changed lel)

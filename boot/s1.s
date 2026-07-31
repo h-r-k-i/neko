@@ -5,14 +5,57 @@
  FILENAME:      ./boot/s1.s
  NAME:          SBL, Stage 1
  DESCRIPTION:   Sets basic functionality and boots Stage 2
+                Also contains the boot record info for FAT32
  AUTHOR:        Haruki Tokumei, Haruki Media Group
  DATE:          22 January 2026
  COPYRIGHT:     Haruki Media Group
  LICENSE:       MIT License (./LICENSE)
 %endif
 
-cli ; disable interrupts
-jmp 0x0000:start  ; canonicalize CS:EIP and jump to start
+jmp short bgn
+nop
+
+%if 0
+ FAT32 BIOS Parameter Block (BPB)
+%endif
+
+OEM_IDENTIFIER      db "HMNKD000"
+BYTES_PER_SECTOR    dw 512
+SECTORS_PER_CLUSTER db 1
+RESERVED_SECTORS    dw 1
+FILE_ALLOC_TABLES   db 2
+ROOT_DIR_ENTRIES    dw 0
+SECTOR_COUNT_16     dw 0
+MEDIA_DESCRIPTOR    db 0xF8
+SECTOR_COUNT_FAT    dw 0
+
+SECTORS_PER_TRACK   dw 0
+HEAD_COUNT          dw 1
+HIDDEN_SECTORS      dd 0
+SECTOR_COUNT_32     dd 131072
+
+%if 0
+ FAT32 Extended Boot Record (EBR)
+%endif
+
+SECTORS_PER_FAT     dd 32
+FAT_FLAGS           dw 0
+FAT_VERSION         dw 799
+ROOT_DIR_CLUSTER    dd 2
+FSINFO_SECTOR       dw 1
+RESERVED_SECTOR     times 12 db 0
+DRIVE_NUMBER        db 0x80
+WINDOWS_NT_FLAGS    db 0
+BOOT_SIGNATURE      db 0x29
+VOLUME_ID           dd "NEKO"
+VOLUME_LABEL        db "NekoDOS SRC"
+FILESYSTEM_TYPE     db "FAT32   "
+
+
+
+bgn:
+    cli ; disable interrupts
+    jmp 0x0000:start  ; canonicalize CS:EIP and jump to start
 
 start:
     ; store boot drive ID
@@ -26,7 +69,7 @@ start:
     mov fs, ax
     mov gs, ax
     mov ss, ax
-    mov si, DAP
+    ; mov si, DAP
     mov sp, 0x7000
 
     ; re-enable interrupts
@@ -38,40 +81,42 @@ start:
     mov dl, [boot_drive]
     int 0x13
 
-    ; Check if modern disk reading is permissible
-    mov ah, 0x41
-    mov bx, 0x55AA
-    mov dl, [boot_drive]
-    int 0x13
+    ; use CHS to read 17 sectors from the disk into memory at 0x1000
+    ; and we're using CHS because I wanna have FAT32
+    ; and including LBA makes that a PITA
+    ; (actually no it makes it just straight-up impossible lmao)
 
-    jc sector_read_hell
-    cmp bx, 0xAA55
-    jne sector_read_hell
-    test cx, 1
-    jz sector_read_hell
+    ; ; Check if modern disk reading is permissible
+    ; mov ah, 0x41
+    ; mov bx, 0x55AA
+    ; mov dl, [boot_drive]
+    ; int 0x13
 
-    ; Now that we've confirmed that we can use the modern disk reader,
-    ; do that to read into s2
+    ; jc sector_read_hell
+    ; cmp bx, 0xAA55
+    ; jne sector_read_hell
+    ; test cx, 1
+    ; jz sector_read_hell
 
-    ; FIRST: push SC onto the stack so that we know we can use LBA
-    mov dx, 0x5343
-    push dx
+    ; ; Now that we've confirmed that we can use the modern disk reader,
+    ; ; do that to read into s2
 
-    mov si, DAP
-    mov ah, 0x42
-    mov dl, [boot_drive]
-    int 0x13
+    ; ; FIRST: push SC onto the stack so that we know we can use LBA
+    ; mov dx, 0x5343
+    ; push dx
 
-    ; if fail, try a different way
-    jc sector_read_hell
-    jmp final
+    ; mov si, DAP
+    ; mov ah, 0x42
+    ; mov dl, [boot_drive]
+    ; int 0x13
+
+    ; ; if fail, try a different way
+    ; jc sector_read_hell
+    ; jmp final
 
     sector_read_hell:
         ; now that we've confirmed that we can't use the modern disk reader,
         ; use the legacy one to read into s2
-        ; FIRST: push FL onto the stack so that we know we can't use LBA
-        mov dx, 0x464C
-        push dx
 
         mov ah, 0x02
         mov al, 17
@@ -99,31 +144,31 @@ start:
 
     hang:
         cli
-        nop
-        mov ah, 0x0E
-        nop
-        mov al, '?' ; why q mark? uhhhhhhhhhhhhhhh
-        nop
-        mov bh, 0
-        nop
-        mov bl, 0x07
-        int 0x10
+        ; nop
+        ; mov ah, 0x0E
+        ; nop
+        ; mov al, '?' ; why q mark? uhhhhhhhhhhhhhhh
+        ; nop
+        ; mov bh, 0
+        ; nop
+        ; mov bl, 0x07
+        ; int 0x10
         hlt
         jmp hang
     
-    hang_dbg:
-        hlt
-        jmp hang_dbg
+    ; hang_dbg:
+    ;     hlt
+    ;     jmp hang_dbg
 
     boot_drive: db 0
     retry_count: db 0
 
-    DAP:
-        db 0x10
-        db 0
-        dw 17
-        dd 0x00001000
-        dq 1
+    ; DAP:
+    ;     db 0x10
+    ;     db 0
+    ;     dw 17
+    ;     dd 0x00001000
+    ;     dq 1
     
     times 510 - ($ - $$) db 0
     dw 0xAA55

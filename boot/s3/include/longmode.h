@@ -56,7 +56,6 @@
 
 // [Flags]
 #define GRANULARITY 0x1ULL << 55
-#define SIZE 0x1ULL << 54
 #define LONG_MODE 0x1ULL << 53
 
 // [Access Byte]
@@ -82,8 +81,8 @@ uint64_t * GDT_64 = (uint64_t *)0x900;
 /// Function prototypes
 extern uint8_t checkCPUID(void);
 extern int8_t queryLongMode(void);
-// extern void disablePaging(void);
-// extern void enableLongMode(void);
+extern void disablePaging(void);
+extern void enableLongMode(uint64_t * PML4_LOCATION, uint64_t eax, uint64_t ebx, uint64_t edx);
 
 /// Header-Defined Functions
 // these are defined in the header because

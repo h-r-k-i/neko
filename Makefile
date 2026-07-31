@@ -6,7 +6,8 @@ OBJ = ~/opt/cross/bin/x86_64-elf-objcopy
 
 CFLAGS = -ffreestanding -O2 -Wall -Wextra \
     	 -fno-omit-frame-pointer -fno-stack-protector -fno-pie \
-		 -nostdlib -mno-red-zone -mcmodel=large
+		 -nostdlib -mno-red-zone -mcmodel=large \
+		 -I./boot/s3/include -I/home/renee/opt/cross/bin/lib/gcc/x86_64-elf/15.2.0/include
 CXXFLAGS = -ffreestanding -O2 -Wall -Wextra -fno-exceptions \
 		   -fno-rtti
 LDFLAGS = -nostdlib --oformat binary
@@ -46,6 +47,9 @@ BOOT3_LONGO = ./$(BUILD_BIN)/longmode.o
 INITKERNEL = ./bin/nekotest.s
 IK_OBJ = ./$(BUILD_BIN)/nekotest.o
 
+KERNEL = ./bin/neko.c
+KERNEL_OBJ = ./$(BUILD_BIN)/neko.o
+
 #all:
 #	echo $(BOOT3_COBJ)
 
@@ -63,12 +67,17 @@ $(BOOT2_BIN): $(BOOT2_ASM)
 $(BOOT3_OBJ): $(BOOT3_ASM)
 	nasm -f elf32 $< -o $@
 
-
 $(BOOT3_IDTO): $(BOOT3_IDT)
 	nasm -f elf32 $< -o $@
 
 $(BOOT3_LONGO): $(BOOT3_LONG)
 	nasm -f elf32 $< -o $@
+
+$(IK_OBJ): $(INITKERNEL)
+	nasm -f elf32 $< -o $@
+
+$(KERNEL_OBJ): $(KERNEL)
+	$(CC) -ffreestanding -m32 -I./boot/s3/include -I/home/renee/opt/cross/bin/lib/gcc/x86_64-elf/15.2.0/include -c $< -o $@
 
 ./$(BUILD_BIN)/s3.c.o: $(BOOT3_C)
 	$(CC) -ffreestanding -m32 -I./boot/s3/include -I/home/renee/opt/cross/bin/lib/gcc/x86_64-elf/15.2.0/include -c $< -o $@
@@ -76,8 +85,8 @@ $(BOOT3_LONGO): $(BOOT3_LONG)
 ./$(BUILD_BIN)/%.c.o: ./boot/s3/drivers/%.c
 	$(CC) -ffreestanding -m32 -I./boot/s3/include -I/home/renee/opt/cross/bin/lib/gcc/x86_64-elf/15.2.0/include -c $< -o $@
 
-$(BOOT3_ELF): $(BOOT3_OBJ) $(BOOT3_COBJ) $(BOOT3_DRIV) $(BOOT3_IDTO) $(BOOT3_LD) $(BOOT3_LONGO)
-	$(LD) -m elf_i386 -T $(BOOT3_LD) -o $@ $(BOOT3_OBJ) $(BOOT3_COBJ) $(BOOT3_DRIV) $(BOOT3_IDTO) $(BOOT3_LONGO)
+$(BOOT3_ELF): $(BOOT3_OBJ) $(BOOT3_COBJ) $(BOOT3_DRIV) $(BOOT3_IDTO) $(BOOT3_LD) $(BOOT3_LONGO) $(IK_OBJ) $(KERNEL_OBJ)
+	$(LD) -m elf_i386 -T $(BOOT3_LD) -o $@ $(BOOT3_OBJ) $(BOOT3_COBJ) $(BOOT3_DRIV) $(BOOT3_IDTO) $(BOOT3_LONGO) $(IK_OBJ) $(KERNEL_OBJ)
 
 $(BOOT3_BIN): $(BOOT3_ELF)
 	$(OBJ) -O binary $< $@
@@ -88,16 +97,19 @@ $(BOOT_BIN): $(BOOT1_BIN) $(BOOT2_BIN) $(BOOT3_BIN)
 kernel.o: $(KERNEL_C)
 	$(CC) $(CFLAGS) -c $(KERNEL_C) -o kernel.o
 
-$(KERNEL_BIN): kernel.o
-	$(LD) $(LDFLAGS) -Ttext 0x8000 kernel.o -o $(KERNEL_BIN)
+consoleio.o: ./boot/s3/drivers/consoleio.c
+	$(CC) $(CFLAGS) -c ./boot/s3/drivers/consoleio.c -o consoleio.o
+
+$(KERNEL_BIN): kernel.o consoleio.o
+	$(LD) $(LDFLAGS) -Ttext 0x8000 kernel.o consoleio.o -o $(KERNEL_BIN)
 
 $(OS_IMG): $(BOOT_BIN) $(KERNEL_BIN)
-	dd if=/dev/zero of=$(OS_IMG) bs=512 count=2048
+	dd if=/dev/zero of=$(OS_IMG) bs=512 count=131072
 	dd if=$(BOOT_BIN) of=$(OS_IMG) conv=notrunc
 	dd if=$(KERNEL_BIN) of=$(OS_IMG) seek=54 conv=notrunc
 
 run: $(OS_IMG)
-	qemu-system-x86_64 -drive format=raw,file=$(OS_IMG),if=ide -serial stdio -m size=8192
+	qemu-system-x86_64 -drive format=raw,file=$(OS_IMG),if=ide -serial stdio -m size=8192 -d int,cpu_reset -no-reboot -D qemu.log
 
 debug: $(OS_IMG)
 	qemu-system-x86_64 -drive format=raw,file=$(OS_IMG),if=ide -serial stdio -s -S -m 1G

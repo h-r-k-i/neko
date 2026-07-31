@@ -28,15 +28,12 @@
 #include "inline.h"
 #include "longmode.h"
 
+
+__attribute__((section(".multiboot"))) struct {
+ // todo: set up multiboot
+} multiboot_header;
+
 void s3_main(uint32_t eax, uint32_t ebx, uint32_t edx) {
-    // asm volatile (
-    //     ".intel_syntax noprefix\n\t"
-    //     "mov eax, 0x6B637546\n\t"
-    //     ".att_syntax prefix"
-    //     : /* outputs */
-    //     : /* inputs */
-    //     :"eax" /* clobbered */
-    // );
 
     uint16_t * video = (uint16_t *)0xB8000;
     char * str1 = "SBL: Loading Neko...               \0";
@@ -47,7 +44,7 @@ void s3_main(uint32_t eax, uint32_t ebx, uint32_t edx) {
         ++index;
     }
 
-    if (eax == SBL) {
+    if (eax == SBL || eax == MULTIBOOT1 || eax == MULTIBOOT2) {
         printk("Rewriting interrupt table...\n");
         IDT_INIT();
 
@@ -62,38 +59,38 @@ void s3_main(uint32_t eax, uint32_t ebx, uint32_t edx) {
         int8_t longmodeSupported = 0;
         if (checkCPUID() != 1) {
             printk("No CPUID support detected.\n");
-            // Copilot wants me to then halt but right now there's no reason to not add Protected Mode support.
-            // Not right now, though. Writing basically two kernels fucking hurts my head to think of.
+            hang();
         }
+        longmodeSupported = queryLongMode();
+        if (longmodeSupported == 0) printk("Long Mode supported.\n");
         else {
-            longmodeSupported = queryLongMode();
-            if (longmodeSupported == 0) {
-                printk("Long Mode supported.\n");
-            }
-            else if (longmodeSupported == 1) {
-                printk("Long Mode not supported.\n");
-            }
-            else if (longmodeSupported == -1) {
-                printk("CPU too old for Long Mode support.\n");
-            }
-            else {
-                printk("Error occurred while checking Long Mode support.\n");
-            }
+            if (longmodeSupported == 1) printk("Long Mode not supported.\n");
+            else if (longmodeSupported == -1) printk("CPU too old for Long Mode support.\n");
+            else printk("Error occurred while checking Long Mode support.\n");
+            hang();
         }
 
-        // if (longmodeSupported != 0) hang();
-
-        // disablePaging();
-        // GDT_INIT_64();
-        // PT_INIT();
-        // enableLongMode();
+        printk("Long Mode supported. Disabling paging...\n");
+        disablePaging();
+        printk("Paging disabled. Rebuilding GDT...\n");
+        GDT_INIT_64();
+        struct __attribute__((packed)) {
+            uint16_t size;
+            uint32_t offset;
+        } GDTR = {
+            (3 * 8) - 1,
+            (uint32_t)(GDT_64)
+        };
+        __asm__ volatile ("lgdt %0" : : "m"(GDTR));
+        printk("GDT rebuilt. Building page tables...\n");
+        PM_INIT();
+        printk("Page tables built. Hoping for the best...\n");
+        enableLongMode(page_map_level_4, eax, ebx, edx); // idk what edx is doing here im afraid to change it
 
 
 
         while (1) ;
     }
-    else if (eax == MULTIBOOT1) { /* todo: Multiboot1 handling */ }
-    else if (eax == MULTIBOOT2) { /* todo: Multiboot2 handling */ }
     else {
         str1 = "what????????????????";
         index = 0;

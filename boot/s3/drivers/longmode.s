@@ -96,57 +96,67 @@ queryLongMode:
         mov ax, 1
         ret
 
-; ; Disables paging by clearing the PG bit in CR0
-; disablePaging:
-;     mov eax, cr0
-;     and eax, ~CR0_PG
-;     mov cr0, eax
-;     ret
+; Disables paging by clearing the PG bit in CR0
+disablePaging:
+    mov eax, cr0
+    and eax, ~CR0_PG
+    mov cr0, eax
+    ret
 
-; ; Does the Long Mode shit.
-; enableLongMode:
-;     ; Enable PAE in CR4
-;     mov eax, cr4
-;     or eax, CR4_PAE_ENABLE
-;     mov cr4, eax
+; Does the Long Mode shit.
+enableLongMode: ; extern void enableLongMode(int64_t * PML4_LOCATION);
 
-;     ; Load PML4 in CR3
-;     mov eax, PML4T_ADDR
-;     mov cr3, eax
+    ; Load PML4 in CR3
+    mov eax, [esp + 4] ; get the PML4_LOCATION arg
+    mov cr3, eax
 
-;     ; Set Long Mode bit
-;     mov ecx, EFER_MSR
-;     rdmsr
-;     or eax, EFER_LM_ENABLE
-;     wrmsr
+    ; Enable PAE in CR4
+    mov eax, cr4
+    or eax, CR4_PAE_ENABLE
+    mov cr4, eax
 
-;     ; Enable paging and protected mode (we should be in
-;     ; protected mode already but I am also copypasting from
-;     ; osdev lol)
-;     mov eax, cr0
-;     or eax, CR0_PM_ENABLE_JIC | CR0_PG_ENABLE
-;     mov cr0, eax
+    ; Set Long Mode bit
+    mov ecx, EFER_MSR
+    rdmsr
+    or eax, EFER_LM_ENABLE
+    wrmsr
 
-;     ; Load 64-bit GDT (assuming GDT is set AT ONE LOCATION)
-;     lgdt [GDT_LOC_64]
-;     jmp 0x08:eLongMode
+    ; Enable paging and protected mode (we should be in
+    ; protected mode already but I am also copypasting from
+    ; osdev lol)
+    mov eax, cr0
+    or eax, CR0_PM_ENABLE_JIC | CR0_PG_ENABLE
+    mov cr0, eax
 
-; bits 64 ; im scared
-; global eLongMode
-; extern _start64
+    ; Jump to 64-bit code
+    jmp 0x08:eLongMode
 
-; eLongMode:
-;     cli
+bits 64 ; im scared
+global eLongMode
+extern _start64
+
+eLongMode:
+    cli
     
-;     mov ax, 0x10
-;     mov ds, ax
-;     mov es, ax
-;     mov fs, ax
-;     mov gs, ax
-;     mov ss, ax
+    ; Set up segment registers for 64-bit mode
+    mov ax, 0x10
+    mov ds, ax
+    mov es, ax
+    mov fs, ax
+    mov gs, ax
+    mov ss, ax
 
-;     mov rsp, stack_top
-;     call _start64
+    ; Grab the arguments for _start64 from the stack
+    mov rdi, [rsp + 16] ; magic numbers
+    mov rsi, [rsp + 24] ; information
+    mov rdx, [rsp + 32] ; i gen still got no fucking clue
+
+    ; realign stack pointer to 16-byte boundary
+    mov rsp, stack_top
+    and rsp, -16
+
+    ; jump to initial kernel code
+    call _start64
 
 hang:
     cli
@@ -156,5 +166,5 @@ hang:
 section .bss
     align 16
     stack_bottom:
-    resb 4096
+    resb 0x4000 ; 16 KiB stack
     stack_top:
