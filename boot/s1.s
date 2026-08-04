@@ -58,8 +58,6 @@ bgn:
     jmp 0x0000:start  ; canonicalize CS:EIP and jump to start
 
 start:
-    ; store boot drive ID
-    mov [boot_drive], dl
 
     ; load segment registers
 
@@ -72,6 +70,13 @@ start:
     ; mov si, DAP
     mov sp, 0x7000
 
+    mov ax, 0x0003
+    int 0x10
+
+
+    ; store boot drive ID
+    mov [boot_drive], dl
+
     ; re-enable interrupts
     sti
 
@@ -81,42 +86,49 @@ start:
     mov dl, [boot_drive]
     int 0x13
 
-    ; use CHS to read 17 sectors from the disk into memory at 0x1000
-    ; and we're using CHS because I wanna have FAT32
-    ; and including LBA makes that a PITA
-    ; (actually no it makes it just straight-up impossible lmao)
+    ; Check if modern disk reading is permissible
+    mov ah, 0x41
+    mov bx, 0x55AA
+    mov dl, [boot_drive]    
+    int 0x13
 
-    ; ; Check if modern disk reading is permissible
-    ; mov ah, 0x41
-    ; mov bx, 0x55AA
-    ; mov dl, [boot_drive]
-    ; int 0x13
+    jc sector_read_hell_01
+    cmp bx, 0xAA55
+    jne sector_read_hell_01
+    test cx, 1
+    jz sector_read_hell_01
 
-    ; jc sector_read_hell
-    ; cmp bx, 0xAA55
-    ; jne sector_read_hell
-    ; test cx, 1
-    ; jz sector_read_hell
+    ; Now that we've confirmed that we can use the modern disk reader,
+    ; do that to read into s2
 
-    ; ; Now that we've confirmed that we can use the modern disk reader,
-    ; ; do that to read into s2
+    ; FIRST: push SC onto the stack so that we know we can use LBA
+    mov dx, 0x5343
+    push dx
 
-    ; ; FIRST: push SC onto the stack so that we know we can use LBA
-    ; mov dx, 0x5343
-    ; push dx
+    mov si, DAP
+    mov ah, 0x42
+    mov dl, [boot_drive]
+    int 0x13
 
-    ; mov si, DAP
-    ; mov ah, 0x42
-    ; mov dl, [boot_drive]
-    ; int 0x13
+    ; if fail, try a different way
+    jc sector_read_hell_01
+    jmp final
 
-    ; ; if fail, try a different way
-    ; jc sector_read_hell
-    ; jmp final
+    sector_read_hell_01:
+
+        ; pop SC off the stack
+        pop dx
+
+        ; push FL onto the stack
+        mov dx, 0x464C
+        push dx
+        ; fall into sector_read_hell
 
     sector_read_hell:
         ; now that we've confirmed that we can't use the modern disk reader,
         ; use the legacy one to read into s2
+
+
 
         mov ah, 0x02
         mov al, 17
@@ -133,42 +145,32 @@ start:
         jnc final
         
         inc byte [retry_count]
-        cmp byte [retry_count], 3
+        cmp byte [retry_count], 4
         jae hang
         jmp sector_read_hell
 
     final:
         ; if all passes jump into s2
+
         mov dl, [boot_drive]
         jmp 0x0000:0x1000
 
     hang:
         cli
-        ; nop
-        ; mov ah, 0x0E
-        ; nop
-        ; mov al, '?' ; why q mark? uhhhhhhhhhhhhhhh
-        ; nop
-        ; mov bh, 0
-        ; nop
-        ; mov bl, 0x07
-        ; int 0x10
         hlt
         jmp hang
-    
-    ; hang_dbg:
-    ;     hlt
-    ;     jmp hang_dbg
 
     boot_drive: db 0
     retry_count: db 0
 
-    ; DAP:
-    ;     db 0x10
-    ;     db 0
-    ;     dw 17
-    ;     dd 0x00001000
-    ;     dq 1
+    align 4
+    DAP:
+        db 0x10 ; size of DAP structure
+        db 0 ; reserved
+        dw 17 ; number of sectors to read
+        dw 0x1000 ; offset to read into
+        dw 0x0000 ; segment to read into
+        dq 1 ; starting LBA sector (sector 1, which is the second sector on disk)
     
     times 510 - ($ - $$) db 0
     dw 0xAA55

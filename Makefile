@@ -38,9 +38,6 @@ BOOT3_ELF  = ./$(BUILD_BIN)/s3.elf
 
 BOOT3_LD = ./boot/s3/s3.ld
 
-BOOT3_IDT = ./boot/s3/drivers/IDT.s
-BOOT3_IDTO = ./$(BUILD_BIN)/IDT.o
-
 BOOT3_LONG = ./boot/s3/drivers/longmode.s
 BOOT3_LONGO = ./$(BUILD_BIN)/longmode.o
 
@@ -67,9 +64,6 @@ $(BOOT2_BIN): $(BOOT2_ASM)
 $(BOOT3_OBJ): $(BOOT3_ASM)
 	nasm -f elf32 $< -o $@
 
-$(BOOT3_IDTO): $(BOOT3_IDT)
-	nasm -f elf32 $< -o $@
-
 $(BOOT3_LONGO): $(BOOT3_LONG)
 	nasm -f elf32 $< -o $@
 
@@ -80,13 +74,13 @@ $(KERNEL_OBJ): $(KERNEL)
 	$(CC) -ffreestanding -m32 -I./boot/s3/include -I/home/renee/opt/cross/bin/lib/gcc/x86_64-elf/15.2.0/include -c $< -o $@
 
 ./$(BUILD_BIN)/s3.c.o: $(BOOT3_C)
-	$(CC) -ffreestanding -m32 -I./boot/s3/include -I/home/renee/opt/cross/bin/lib/gcc/x86_64-elf/15.2.0/include -c $< -o $@
+	$(CC) -ffreestanding -m32 -I./boot/s3/include -DBUILD_DEBUG -I/home/renee/opt/cross/bin/lib/gcc/x86_64-elf/15.2.0/include -c $< -o $@
 
 ./$(BUILD_BIN)/%.c.o: ./boot/s3/drivers/%.c
 	$(CC) -ffreestanding -m32 -I./boot/s3/include -I/home/renee/opt/cross/bin/lib/gcc/x86_64-elf/15.2.0/include -c $< -o $@
 
-$(BOOT3_ELF): $(BOOT3_OBJ) $(BOOT3_COBJ) $(BOOT3_DRIV) $(BOOT3_IDTO) $(BOOT3_LD) $(BOOT3_LONGO) $(IK_OBJ) $(KERNEL_OBJ)
-	$(LD) -m elf_i386 -T $(BOOT3_LD) -o $@ $(BOOT3_OBJ) $(BOOT3_COBJ) $(BOOT3_DRIV) $(BOOT3_IDTO) $(BOOT3_LONGO) $(IK_OBJ) $(KERNEL_OBJ)
+$(BOOT3_ELF): $(BOOT3_OBJ) $(BOOT3_COBJ) $(BOOT3_DRIV) $(BOOT3_LD) $(BOOT3_LONGO) $(IK_OBJ) $(KERNEL_OBJ)
+	$(LD) -m elf_i386 -T $(BOOT3_LD) -o $@ $(BOOT3_OBJ) $(BOOT3_COBJ) $(BOOT3_DRIV) $(BOOT3_LONGO) $(IK_OBJ) $(KERNEL_OBJ)
 
 $(BOOT3_BIN): $(BOOT3_ELF)
 	$(OBJ) -O binary $< $@
@@ -109,7 +103,7 @@ $(OS_IMG): $(BOOT_BIN) $(KERNEL_BIN)
 	dd if=$(KERNEL_BIN) of=$(OS_IMG) seek=54 conv=notrunc
 
 run: $(OS_IMG)
-	qemu-system-x86_64 -drive format=raw,file=$(OS_IMG),if=ide -serial stdio -m size=8192 -d int,cpu_reset -no-reboot -D qemu.log
+	qemu-system-x86_64 -drive format=raw,file=$(OS_IMG),if=ide -serial stdio -m 32M -d int,cpu_reset -no-reboot -D qemu.log
 
 debug: $(OS_IMG)
 	qemu-system-x86_64 -drive format=raw,file=$(OS_IMG),if=ide -serial stdio -s -S -m 1G
