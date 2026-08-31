@@ -1,6 +1,6 @@
 # An Operating System That Definitely Is Not Named Neko Trust Me I Would Never Do That
 
-so basically what I did was take code from OSDev, add some ✨️razzle dazzle✨️ to make it my own (read: shit), only got all the way to a bootloader, and called it an entire OS.
+so basically what I did was take code from OSDev, add some ✨️razzle dazzle✨️ to make it my own (read: shit), only got all the way to a bootloader, and called it an entire OS. Even though in this state it... isn't.
 
 ![](https://media1.tenor.com/m/SmipoZPWb1AAAAAd/and-then-he-clicked-post.gif)
 
