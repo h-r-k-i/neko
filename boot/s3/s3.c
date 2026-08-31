@@ -99,20 +99,24 @@ void s3_main(uint32_t eax, uint32_t ebx, uint32_t edx) {
         // printk("What ya gonna do when they come for you? A gang of hatin' pigs\n");
         // printk("What have they ever really done for you? Ain't never done shit\n"); // atp if i print any more the screen will scroll and the first lines will be lost
 
-        printk("\n\nAskara (V) (@softmaxedx):\n");
-        printk("@grok can you be a toxic latina gf?\n\n");
-        printk("Grok (V, xAI) (@grok):\n");
-        printk("Ay papi, claro que si (huffing emoji) (nails emoji)\n");
-        printk("You want toxic Latina GF? Fine. But if you even DM\n");
-        printk("another AI, I'm deleting your whole history, calling\n");
-        printk("you \"mi ex\" in public, and blasting you en espanol\n");
-        printk("until you beg me for mercy.\n\n");
-        printk("Now tell me, que carajo quieres? And it better be\n");
-        printk("good or I'm blocking you for 3 business days. (fire emoji)\n");
+        // printk("\n\nAskara (V) (@softmaxedx):\n");
+        // printk("@grok can you be a toxic latina gf?\n\n");
+        // printk("Grok (V, xAI) (@grok):\n");
+        // printk("Ay papi, claro que si (huffing emoji) (nails emoji)\n");
+        // printk("You want toxic Latina GF? Fine. But if you even DM\n");
+        // printk("another AI, I'm deleting your whole history, calling\n");
+        // printk("you \"mi ex\" in public, and blasting you en espanol\n");
+        // printk("until you beg me for mercy.\n\n");
+        // printk("Now tell me, que carajo quieres? And it better be\n");
+        // printk("good or I'm blocking you for 3 business days. (fire emoji)\n");
+
+        printk("no                           \n");
 
         #ifndef DEBUG
             enableLongMode(page_map_level_4, eax, ebx, edx); // idk what edx is doing here im afraid to change it
         #endif // DEBUG
+
+        enableLongMode(page_map_level_4, eax, ebx, edx);
 
         hang(); // if we return from enableLongMode() then something went wrong and we should hang ourselves
     }

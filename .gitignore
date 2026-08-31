@@ -131,4 +131,14 @@ idtbdr.k
 IDTBuilder
 boot.bin.D
 
+# claude worktree gitignore to avoid polluting the main repo with claude files
+.claude/
+
+# other crap singled out because screw you
+tools/SBLReader
+tools/mmr
+pmemsave
+memimg.mem
+tools/biosinfo.txt
+
 # End of https://www.toptal.com/developers/gitignore/api/visualstudiocode,linux,c,c++,assembler

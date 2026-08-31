@@ -167,7 +167,7 @@ start:
     DAP:
         db 0x10 ; size of DAP structure
         db 0 ; reserved
-        dw 17 ; number of sectors to read
+        dw 16 ; number of sectors to read
         dw 0x1000 ; offset to read into
         dw 0x0000 ; segment to read into
         dq 1 ; starting LBA sector (sector 1, which is the second sector on disk)

@@ -13,8 +13,13 @@ typedef struct __attribute__((packed)) {
     uint32_t RESERVED;
 } bytemap;
 
-int main() {
-    FILE* file = fopen("mem.bin", "rb");
+int main(int argc, char *argv[]) {
+    if (argc != 2) {
+        fprintf(stderr, "Usage: %s <mem.bin>\n", argv[0]);
+        return 1;
+    }
+
+    FILE* file = fopen(argv[1], "rb");
     if (!file) {
         perror("Error opening file");
         return 1;
@@ -28,6 +33,7 @@ int main() {
     uint16_t count;
 
     fread(&count, sizeof count, 1, file);
+    printf("Memory Map Count: %" PRIu16 "\n", count);
     fseek(file, 0x7004, SEEK_SET);
 
     bytemap data;

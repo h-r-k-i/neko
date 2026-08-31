@@ -104,7 +104,7 @@ disablePaging:
     ret
 
 ; Does the Long Mode shit.
-enableLongMode: ; extern void enableLongMode(int64_t * PML4_LOCATION);
+enableLongMode: ; extern void enableLongMode(int64_t * PML4_LOCATION, uint32_t eax, uint32_t ebx, uint32_t edx);
 
     ; Load PML4 in CR3
     mov eax, [esp + 4] ; get the PML4_LOCATION arg
@@ -137,6 +137,7 @@ extern _start64
 
 eLongMode:
     cli
+    cld
     
     ; Set up segment registers for 64-bit mode
     mov ax, 0x10
@@ -147,9 +148,9 @@ eLongMode:
     mov ss, ax
 
     ; Grab the arguments for _start64 from the stack
-    mov rdi, [rsp + 16] ; magic numbers
-    mov rsi, [rsp + 24] ; information
-    mov rdx, [rsp + 32] ; i gen still got no fucking clue
+    mov edi, [rsp + 8] ; magic numbers
+    mov esi, [rsp + 12] ; information
+    mov edx, [rsp + 16] ; i gen still got no fucking clue
 
     ; realign stack pointer to 16-byte boundary
     mov rsp, stack_top

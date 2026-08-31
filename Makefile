@@ -15,7 +15,19 @@ LDFLAGS = -nostdlib --oformat binary
 BUILD_BIN = build
 
 BOOT1_ASM = ./boot/s1.s
-BOOT2_ASM = ./boot/s2.s
+BOOT2_ASM = ./boot/s2/s2.s
+BOOT2_C   = ./boot/s2/s2.c
+BOOT2_BIN  = ./$(BUILD_BIN)/s2.bin
+
+BOOT2_OBJ  = ./$(BUILD_BIN)/s2.o
+BOOT2_COBJ = ./$(BUILD_BIN)/s2.c.o
+BOOT2_ELF  = ./$(BUILD_BIN)/s2.elf
+
+BOOT2_HELPASM = ./boot/s2/s2func.s
+BOOT2_HLP = ./$(BUILD_BIN)/s2func.o
+
+BOOT2_LD = ./boot/s2/s2.ld
+
 BOOT3_ASM = ./boot/s3/s3.s
 BOOT3_C	  = ./boot/s3/s3.c
 BOOT3_D   = $(wildcard ./boot/s3/drivers/*.c)
@@ -47,6 +59,11 @@ IK_OBJ = ./$(BUILD_BIN)/nekotest.o
 KERNEL = ./bin/neko.c
 KERNEL_OBJ = ./$(BUILD_BIN)/neko.o
 
+ifdef S2_DEBUG
+    S2_DEBUG_FLAG := -D$(S2_DEBUG)
+	
+endif
+
 #all:
 #	echo $(BOOT3_COBJ)
 
@@ -58,8 +75,20 @@ $(BUILD_BIN):
 $(BOOT1_BIN): $(BOOT1_ASM)
 	nasm -f bin $< -o $@
 
-$(BOOT2_BIN): $(BOOT2_ASM)
-	nasm -f bin $< -o $@
+$(BOOT2_OBJ): $(BOOT2_ASM)
+	nasm -f elf32 $< -o $@
+
+$(BOOT2_COBJ): $(BOOT2_C)
+	$(CC) -ffreestanding -m16 -I/home/renee/opt/cross/bin/lib/gcc/x86_64-elf/15.2.0/include $(S2_DEBUG_FLAG) -c $< -o $@
+
+$(BOOT2_HLP): $(BOOT2_HELPASM)
+	nasm -f elf32 $< -o $@
+
+$(BOOT2_ELF): $(BOOT2_OBJ) $(BOOT2_COBJ) $(BOOT2_LD) $(BOOT2_HLP)
+	$(LD) -m elf_i386 -T $(BOOT2_LD) -o $@ $(BOOT2_OBJ) $(BOOT2_COBJ) $(BOOT2_HLP)
+
+$(BOOT2_BIN): $(BOOT2_ELF)
+	$(OBJ) -O binary $< $@
 
 $(BOOT3_OBJ): $(BOOT3_ASM)
 	nasm -f elf32 $< -o $@
@@ -103,7 +132,7 @@ $(OS_IMG): $(BOOT_BIN) $(KERNEL_BIN)
 	dd if=$(KERNEL_BIN) of=$(OS_IMG) seek=54 conv=notrunc
 
 run: $(OS_IMG)
-	qemu-system-x86_64 -drive format=raw,file=$(OS_IMG),if=ide -serial stdio -m 32M -d int,cpu_reset -no-reboot -D qemu.log
+	qemu-system-x86_64 -drive format=raw,file=$(OS_IMG),if=ide -serial stdio -m 6G -d int,cpu_reset -no-reboot -D qemu.log
 
 debug: $(OS_IMG)
 	qemu-system-x86_64 -drive format=raw,file=$(OS_IMG),if=ide -serial stdio -s -S -m 1G
