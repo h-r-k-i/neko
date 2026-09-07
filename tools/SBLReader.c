@@ -50,6 +50,23 @@ typedef struct __attribute__((packed)) {
     uint32_t RESERVED;
 } E820h_Map_Entry;
 
+// 128-bit-aligned map this sucks i dont even think i need the
+// vers numbers but theyre here im fucking tired 128-bit-aligned
+// if you hate it write your own shitty catgirl-themed bootloader
+typedef struct __attribute__((packed)) {
+    uint64_t magic;
+    uint64_t entry_count;
+
+    uint32_t RSDPPointer;
+    uint32_t RSDPLength;
+    uint32_t FADTPointer;
+    uint32_t FADTLength;
+
+    uint32_t SMBIOSPointer;
+    uint32_t SMBIOSLength;
+    uint64_t reserved;
+} SBL_FirmwareMap;
+
 
 int main(int argc, char *argv[]) {
     if (argc != 2) {
@@ -97,25 +114,14 @@ int main(int argc, char *argv[]) {
     uint64_t present = data.flags | data.sgalf;
     printf("Present data:\n");
     if (present & 0x1ULL <<  0) printf("\tMemory map\n");
-    if (present & 0x1ULL <<  2) printf("\tText framebuffer\n");
-    if (present & 0x1ULL <<  3) printf("\tVideo framebuffer\n");
-    if (present & 0x1ULL <<  4) printf("\tProtected mode\n");
-    if (present & 0x1ULL <<  5) printf("\tEntropy\n");
-    if (present & 0x1ULL <<  6) printf("\tFloating-point\n");
-    if (present & 0x1ULL <<  7) printf("\tACPI\n");
-    if (present & 0x1ULL <<  8) printf("\tSMBIOS\n");
-    if (present & 0x1ULL <<  9) printf("\tUEFI\n");
-    if (present & 0x1ULL << 10) printf("\tBootloader\n");
-    if (present & 0x1ULL << 11) printf("\tTopology\n");
-    if (present & 0x1ULL << 12) printf("\tGDT\n");
-    if (present & 0x1ULL << 13) printf("\tVM\n");
-    if (present & 0x1ULL << 16) printf("\tRTC\n");
+    if (present & 0x1ULL <<  4) printf("\tCPU Features\n");
+    if (present & 0x1ULL <<  7) printf("\tFirmware\n");
     if (present & 0x1ULL << 17) printf("\tDisplay\n");
-    if (present & 0x1ULL << 18) printf("\tSerial\n");
+    if (present & 0x1ULL << 62) printf("\tBootloader\n");
     if (present & 0x1ULL << 63) printf("\tIdentity\n");
     printf("\n");
 
-    if(fseek(file, data.first, SEEK_SET) != 0) {
+    if (fseek(file, data.first, SEEK_SET) != 0) {
         perror("Seek failure");
         fclose(file);
         return -1;
@@ -126,7 +132,7 @@ int main(int argc, char *argv[]) {
     /* manual seeking yayyyyyyyyyyyyyyyyyy */
 
     // Memory map
-    {
+    if (present & 0x1ULL <<  0) {
         if (fread(&node, sizeof node, 1, file) != 1) {
             perror("Read failure");
             fclose(file);
@@ -210,6 +216,7 @@ int main(int argc, char *argv[]) {
             printf("Memory map data:\n");
             printf("\tValidation: 0x%04" PRIx16 "\n", header.validation);
             printf("\tTotal entry count: %" PRIu16 " entries\n\n", header.size);
+            uint64_t total_memory = 0;
 
             for (uint16_t ID = 0; ID < header.size; ID++) {
                 if (fread(&entry, sizeof entry, 1, file) != 1) {
@@ -222,6 +229,8 @@ int main(int argc, char *argv[]) {
                 printf("\tSize: %" PRIu64 " bytes\n", entry.Size);
                 printf("\tType: ");
 
+                total_memory += entry.Size;
+
                 switch (entry.Type) {
                     case 0x01: puts("Memory available to the OS\n"); break;
                     case 0x02: puts("System-Reserved Memory\n"); break;
@@ -231,11 +240,87 @@ int main(int argc, char *argv[]) {
                     default: puts("Unknown memory, likely reserved.\n"); break;
                 }
             }
+
+            printf("Total memory size: %" PRIu64 " bytes\n", total_memory);
         }
 
     }
+    else {
+        perror("What kind of fucking system are you using???");
+        fclose(file);
+        return 0x4655434B; // FUCK
+    }
 
-    // stuff
+    putchar('\n');
+
+    // Long mode and entropy data
+    if (present & 0x1ULL <<  4) {
+        if (fseek(file, node.next, SEEK_SET) != 0) {
+            perror("Seek failure");
+            fclose(file);
+            return -1;
+        }
+
+        if (fread(&node, sizeof node, 1, file) != 1) {
+            perror("Read failure");
+            fclose(file);
+            return 1;
+        }
+
+        uint64_t fgr = 0x0000;
+        if (fseek(file, node.data, SEEK_SET) != 0) {
+            perror("Seek failure");
+            fclose(file);
+            return -1;
+        }
+
+        if (fread(&fgr, sizeof fgr, 1, file) != 1) {
+            perror("Read failure");
+            fclose(file);
+            return 1;
+        }
+
+        fgr & (0x1ULL << 0) ? printf("CPUID is available.\n") : printf("CPUID is not validated.\n");
+        fgr & (0x1ULL << 1) ? printf("Long mode is available.\n") : printf("Long mode is not validated.\n");
+        fgr & (0x1ULL << 2) ? printf("RDRAND is available.\n") : printf("RDRAND is not validated.\n");
+    }
+
+    putchar('\n');
+
+    
+    // Bootloader identity statement
+    if (present & 0x1ULL << 63) { // this should always work but who knows
+        if (fseek(file, node.next, SEEK_SET) != 0) {
+            perror("Seek failure");
+            fclose(file);
+            return -1;
+        }
+
+        if (fread(&node, sizeof node, 1, file) != 1) {
+            perror("Read failure");
+            fclose(file);
+            return 1;
+        }
+        printf("Bootloader identity statement:\n");
+        printf("\tThis identity map produced by ");
+        char idc = 255;
+        for (uint16_t i = 0; idc != 0; i++) {
+            if (fseek(file, node.data + i, SEEK_SET) != 0) {
+                perror("Seek failure");
+                fclose(file);
+                return -1;
+            }
+
+            if (fread(&idc, sizeof idc, 1, file) != 1) {
+                perror("Read failure");
+                fclose(file);
+                return 1;
+            }
+
+            if (idc == 0) putchar('\n');
+            else putchar(idc);
+        }
+    }
 
     // exit
     fclose(file);

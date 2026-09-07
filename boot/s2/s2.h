@@ -60,11 +60,26 @@ typedef struct __attribute__((packed)) {
     uint16_t memory_above_1M;
 } SBL_88_Map;
 
+typedef struct __attribute__((packed)) {
+    uint64_t magic;
+    uint64_t entry_count;
+
+    uint32_t RSDPPointer;
+    uint32_t RSDPLength;
+    uint32_t FADTPointer;
+    uint32_t FADTLength;
+
+    uint32_t SMBIOSPointer;
+    uint32_t SMBIOSLength;
+    uint64_t reserved;
+} SBL_FirmwareMap;
+
 /// Function Prototypes
 // External
 extern uint16_t SBL_E820(uint32_t segment_offset, uint32_t* continuation_val);
 extern uint16_t SBL_E801(uint32_t segment_offset);
 extern uint16_t SBL_88(uint32_t segment_offset);
+extern uint16_t SBL_LM_Entropy(void);
 
 // Internal
 SBL_Node* _SBL_NodeMap_fw(SBL_Node* node);

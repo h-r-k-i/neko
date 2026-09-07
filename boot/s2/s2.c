@@ -60,12 +60,12 @@ uint16_t sbl_build(uint16_t location) {
     uint16_t resb = SBL_E820(segment_offset, &continuation_val);
 
     if (!resb && continuation_val != 0) {
-        bootloader_header->flags |= 0x1;
+        bootloader_header->flags |= 0x1ULL;
         do {
+            header->entry_count++;
             segment_offset += E820_ENTRY_SIZE;
             resb = SBL_E820(segment_offset, &continuation_val);
             if (resb != 14 && resb) break;
-            header->entry_count++;
         } while (continuation_val != 0 && header->entry_count < E820_MAX_ENTRIES);
     }
     if (resb) switch (resb) {
@@ -74,13 +74,13 @@ uint16_t sbl_build(uint16_t location) {
             if (header->entry_count > 1) break; // if we have more than one entry we're probably good
         default:
             {
-                bootloader_header->sgalf |= 0x1; // Mark memory map as being shid
+                bootloader_header->sgalf |= 0x1ULL; // Mark memory map as being shid
                 SBL_E801_Map* e801_map = (SBL_E801_Map*)(SBL_NodeMap->data & 0xFFFF);
                 e801_map->magic = 0xE801; // Magic number for E801 map
                 segment_offset = 0x0000 << 16 | (uint16_t)(&e801_map->extended_memory_1k); // start of the memory info
                 resb = SBL_E801(segment_offset); // god help us all
                 if (!resb) {
-                    bootloader_header->flags |= 0x1; // Mark decent memory map as successfully built
+                    bootloader_header->flags |= 0x1ULL; // Mark decent memory map as successfully built
                     SBL_NodeMap->next = ((uint16_t)(SBL_NodeMap) + sizeof(SBL_Node) + 5 * sizeof(uint16_t));
                     break;
                 }
@@ -100,33 +100,51 @@ uint16_t sbl_build(uint16_t location) {
     else {
         SBL_NodeMap->next = ((uint16_t)(SBL_NodeMap) + sizeof(SBL_Node) + 2 * sizeof(uint16_t) + E820_ENTRY_SIZE * header->entry_count);
     }
-    // Build video framebuffer info
-    // SBL_NodeMap = _SBL_NodeMap_fw(SBL_NodeMap);
-    // Build text framebuffer info
-    // Build protected mode info
-    // Build entropy info
-    // Build floating-point info
-    // Build ACPI info
-    // Build SMBIOS info
-    // Build UEFI info
-    // Build bootloader info
-    // Build topology info
-    // Build GDT info
+
+    // Build long mode and entropy info (later other cpu features maybe)
+    SBL_NodeMap = _SBL_NodeMap_fw(SBL_NodeMap);
+    SBL_NodeMap->data = (uint16_t)(SBL_NodeMap + 1);
+    SBL_NodeMap->next = SBL_NodeMap->data + sizeof(uint64_t);
+
+    uint64_t* flags_ptr = (uint64_t*)(SBL_NodeMap->data);
+    *flags_ptr = 0x0000; // clear the flags
+
+    resb = SBL_LM_Entropy();
+
+    if (!(resb & 0xF000)) {
+        bootloader_header->flags |= 0x1ULL << 4; // CPUID available
+        *flags_ptr |= 0x1ULL << 0; // CPUID validated
+        if (resb & 0x0080) *flags_ptr |= 0x1ULL << 1; // Long mode available
+        if (resb & 0x0008) *flags_ptr |= 0x1ULL << 2; // Entropy available
+    }
+    else bootloader_header->sgalf |= 0x1ULL << 4; // CPUID not validated using the easy way out
+
+    // Build ACPI/SMBIOS info
     // Build virtual machine info
-    // Build real time clock info
     // Build display info
-    // Build serial bus info
+    // im gonna fucking cry istfg please stop with the asm torment
+    // SBL_NodeMap = _SBL_NodeMap_fw(SBL_NodeMap);
+    // Build bootloader info
     // Build bootloader identity info
     SBL_NodeMap = _SBL_NodeMap_fw(SBL_NodeMap);
     SBL_NodeMap->data = (uint16_t)(SBL_NodeMap + 1);
     SBL_NodeMap->next = 0x0000; // fuck it write straight into the fucking IVT
-    char id[] = "SBL v26.34.1";
-    SBL_memcpy((void*)SBL_NodeMap->data, id, 12);
-    bootloader_header->flags |= 1ULL << 63;
+    char id[] = "SBL v26.35.1";
+    SBL_memcpy((void*)SBL_NodeMap->data, id, 13);
+    bootloader_header->flags |= 0x1ULL << 63;
 
     // Calculate checksum
     bootloader_header->checksum = 0xFFFFFFFFFFFFFFFF;
     bootloader_header->checksum -= bootloader_header->magic + bootloader_header->flags + bootloader_header->sgalf;
+
+    // // just write some bullshit
+    // uint8_t i = 0;
+    // do {
+    //     *(uint8_t*)(0xB8000 + 2*i + 641) = 0x0F; // white on black
+    //     *(uint8_t*)(0xB8000 + 2*i + 640) = i;
+    // } while (++i != 0);
+
+    // while (1) asm("hlt") ;
 
     return RETVAL;
 }

@@ -135,10 +135,12 @@ boot.bin.D
 .claude/
 
 # other crap singled out because screw you
-tools/SBLReader
-tools/mmr
 pmemsave
 memimg.mem
-tools/biosinfo.txt
+
+# the shit in tools tends to be shit that doesn't need to be tracked
+tools/*
+# except for the c files those might come in handy for someone else
+!tools/*.c
 
 # End of https://www.toptal.com/developers/gitignore/api/visualstudiocode,linux,c,c++,assembler

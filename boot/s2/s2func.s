@@ -19,9 +19,19 @@
 %define arg_offset [bp + 0x06]
 %define continuation_pointer [bp + 0x0A]
 
-global SBL_E820, SBL_E801, SBL_88
+global SBL_E820, SBL_E801, SBL_88, SBL_LM_Entropy
+
+EID equ 1 << 21
+CPUID_EXT equ 0x80000000
+CPUID_EXTF equ 0x80000001
+CPUID_LM equ 1 << 29
+
+CPUID_RAND equ 0x00000001
+CPUID_RAND_EXT equ 1 << 30
 
 SBL_E820:
+    ; mov ax, 0xFFFF
+    ; retf
     ; variables:
     ; [bp + 0x00]: original base pointer (NOT A VARIABLE DO NOT FUCKING USE)
     ; [bp + 0x02]: return address (see warning above)
@@ -91,6 +101,8 @@ SBL_E820:
         retf ; could've just done rets everywhere else this is stupid
 
 SBL_E801:
+    ; mov ax, 0xFFFF
+    ; retf
     ; variables:
     ; [bp + 0x00]: original base pointer (NOT A VARIABLE DO NOT FUCKING USE)
     ; [bp + 0x02]: return address (see warning above)
@@ -139,6 +151,8 @@ SBL_E801:
         retf
 
 SBL_88:
+    ; mov ax, 0xFFFF
+    ; retf
     ; variables:
     ; [bp + 0x00]: original base pointer (NOT A VARIABLE DO NOT FUCKING USE)
     ; [bp + 0x02]: return address (see warning above)
@@ -171,6 +185,83 @@ SBL_88:
         jmp .SBL_88_END
 
     .SBL_88_END:
+        pop bx
+        pop di
+        pop es
+        pop bp
+        retf
+
+
+SBL_LM_Entropy:
+    push bp
+    mov bp, sp
+    push es
+    push di
+    push bx
+
+    .SBL_LM_ENTROPY_CHECK_CPUID:
+        o32 pushfd
+        o32 pop eax
+
+        o32 mov ecx, eax
+        o32 xor eax, EID
+
+        o32 push eax
+        o32 popfd
+        o32 pushfd
+        o32 pop eax
+
+        o32 push ecx
+        o32 popfd
+
+        o32 xor eax, ecx
+        jnz .SBL_LM_ENTROPY_CPUID_SUPPORTED
+
+        mov ax, 0xF000
+        jmp .SBL_LM_ENTROPY_END
+    
+    .SBL_LM_ENTROPY_CPUID_SUPPORTED:
+        nop ; lol
+        o32 mov eax, CPUID_EXT
+        o32 cpuid
+        o32 cmp eax, CPUID_EXTF
+        jb .SBL_LM_NO_LMAO
+
+        o32 mov eax, CPUID_EXTF
+        o32 cpuid
+        o32 test edx, CPUID_LM
+        jz .SBL_LM_NO_LMAO
+        jmp .SBL_LM_ENABLED
+
+    .SBL_LM_NO_LMAO:
+        xor ax, ax
+        mov ax, 0x0000
+        push ax
+        jmp .SBL_ENTROPY
+    
+    .SBL_LM_ENABLED:
+        xor ax, ax
+        mov ax, 0x0080
+        push ax
+        jmp .SBL_ENTROPY
+    
+    .SBL_ENTROPY:
+        o32 mov eax, CPUID_RAND
+        o32 cpuid
+        o32 and ecx, CPUID_RAND_EXT
+        jz .SBL_NO_ENTROPY
+
+        xor ax, ax
+        pop ax
+        or ax, 0x0008
+        jmp .SBL_LM_ENTROPY_END
+
+    .SBL_NO_ENTROPY:
+        xor ax, ax
+        pop ax
+        jmp .SBL_LM_ENTROPY_END
+
+    .SBL_LM_ENTROPY_END:
         pop bx
         pop di
         pop es

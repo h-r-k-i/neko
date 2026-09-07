@@ -399,36 +399,7 @@ stage6:
         add edi, 8
         dec ecx
         jnz .loop69
-    
-    ; now write the checksum
-    mov ax, 0xFFFF
-    mov bx, 0xFFFF
-    mov cx, 0xFFFF
-    mov dx, 0xFFFF
-
-    ; sub magic
-    sub dx, [SBL_Data]
-    sbb cx, [SBL_Data + 2]
-    sbb bx, [SBL_Data + 4]
-    sbb ax, [SBL_Data + 6]
-
-    ; sub flags
-    sub dx, [SBL_Data + 16]
-    sbb cx, [SBL_Data + 18]
-    sbb bx, [SBL_Data + 20]
-    sbb ax, [SBL_Data + 22]
-
-    ; sub antiflags
-    sub dx, [SBL_Data + 24]
-    sbb cx, [SBL_Data + 26]
-    sbb bx, [SBL_Data + 28]
-    sbb ax, [SBL_Data + 30]
-
-    ; store checksum
-    mov [SBL_Data + 14], ax
-    mov [SBL_Data + 12], bx
-    mov [SBL_Data + 10], cx
-    mov [SBL_Data + 8], dx
+        
     jmp stage7
 
 ; S7: Finally enter Protected Mode

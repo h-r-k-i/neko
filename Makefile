@@ -132,10 +132,10 @@ $(OS_IMG): $(BOOT_BIN) $(KERNEL_BIN)
 	dd if=$(KERNEL_BIN) of=$(OS_IMG) seek=54 conv=notrunc
 
 run: $(OS_IMG)
-	qemu-system-x86_64 -drive format=raw,file=$(OS_IMG),if=ide -serial stdio -m 6G -d int,cpu_reset -no-reboot -D qemu.log
+	qemu-system-x86_64 -drive format=raw,file=$(OS_IMG),if=ide -serial stdio -m 6G -d int,cpu_reset -no-reboot -D qemu.log -cpu host -accel kvm
 
 debug: $(OS_IMG)
-	qemu-system-x86_64 -drive format=raw,file=$(OS_IMG),if=ide -serial stdio -s -S -m 1G
+	qemu-system-x86_64 -drive format=raw,file=$(OS_IMG),if=ide -serial stdio -s -S -m 1G -accel kvm -cpu host,+rdrand
 
 clean:
 	rm -rf *.o *.bin $(OS_IMG) $(BUILD_BIN)
