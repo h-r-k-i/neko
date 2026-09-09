@@ -16,15 +16,8 @@ uint16_t c_add(uint16_t a, uint16_t b) {
     return a + b;
 }
 
-// typedef struct __attribute__((packed)) {
-//     uint64_t magic;
-//     uint64_t checksum;
-//     uint64_t flags;
-//     uint64_t sgalf;
-//     uint64_t first;
-// } SBL_Data;
-
 uint16_t sbl_build(uint16_t location) {
+
     // build SBL data structure at the specified location
     uint64_t* head_64 = (uint64_t*)location;
     SBL_Data* bootloader_header = (SBL_Data*)location;
@@ -119,32 +112,65 @@ uint16_t sbl_build(uint16_t location) {
     }
     else bootloader_header->sgalf |= 0x1ULL << 4; // CPUID not validated using the easy way out
 
-    // Build ACPI/SMBIOS info
-    // Build virtual machine info
+    // Build ACPI/SMBIOS stub
+    SBL_NodeMap = _SBL_NodeMap_fw(SBL_NodeMap);
+    SBL_NodeMap->data = (uint16_t)(SBL_NodeMap + 1);
+    SBL_NodeMap->next = SBL_NodeMap->data + sizeof(SBL_FirmwareMap);
+    SBL_FirmwareMap* fw = (SBL_FirmwareMap*)(SBL_NodeMap->data);
+    // these are cleared to placeholder the values
+    // since dealing with rm segmentation makes me want to harm myself and others
+    fw->entry_count = 0x0000000000000000;
+
+    fw->RSDPPointer = 0x00000000;
+    fw->RSDPLength = 0x00000000;
+    fw->FADTLength = 0x00000000;
+    fw->FADTPointer = 0x00000000;
+
+    fw->SMBIOSPointer = 0x00000000;
+    fw->SMBIOSLength = 0x00000000;
+    fw->reserved = 0x0000000000000000;
+
+    // when done write magic number
+    char id2[] = "gon.kms!"; // no null term fuck you
+    SBL_memcpy(&(fw->magic), id2, 8);
+
+    bootloader_header->sgalf |= 1ULL << 7; // mark firmware map as incomplete
+    bootloader_header->flags |= 1ULL << 7; // mark firmware map as incomplete
+
     // Build display info
     // im gonna fucking cry istfg please stop with the asm torment
-    // SBL_NodeMap = _SBL_NodeMap_fw(SBL_NodeMap);
-    // Build bootloader info
+    SBL_NodeMap = _SBL_NodeMap_fw(SBL_NodeMap);
+    SBL_NodeMap->data = 0;
+    SBL_NodeMap->next = (uint16_t)(SBL_NodeMap + 1);
+    bootloader_header->sgalf |= 1ULL << 17; // mark display info as incomplete
+    bootloader_header->flags |= 1ULL << 17; // mark display info as incomplete
+
+
+    // Build bootloader map info
+    SBL_NodeMap = _SBL_NodeMap_fw(SBL_NodeMap);
+    SBL_NodeMap->data = 0;
+    SBL_NodeMap->next = (uint16_t)(SBL_NodeMap + 1);
+    bootloader_header->sgalf |= 1ULL << 62; // mark bootloader info as incomplete
+    bootloader_header->flags |= 1ULL << 62; // mark bootloader info as incomplete
+
     // Build bootloader identity info
     SBL_NodeMap = _SBL_NodeMap_fw(SBL_NodeMap);
     SBL_NodeMap->data = (uint16_t)(SBL_NodeMap + 1);
     SBL_NodeMap->next = 0x0000; // fuck it write straight into the fucking IVT
-    char id[] = "SBL v26.35.1";
-    SBL_memcpy((void*)SBL_NodeMap->data, id, 13);
     bootloader_header->flags |= 0x1ULL << 63;
+    SBL_Identity* identity = (SBL_Identity*)(SBL_NodeMap->data);
+    SBL_memcpy(identity->magic, SBL_IDENTITY_MAGIC, sizeof(identity->magic));
+    SBL_memcpy(identity->name, SBL_IDENTITY_NAME, sizeof(identity->name));
+    identity->version.year = 26;
+    identity->version.week = 35;
+    identity->version.day = 2;
+    identity->contract.year = 26;
+    identity->contract.month = 9;
+    
 
     // Calculate checksum
     bootloader_header->checksum = 0xFFFFFFFFFFFFFFFF;
     bootloader_header->checksum -= bootloader_header->magic + bootloader_header->flags + bootloader_header->sgalf;
-
-    // // just write some bullshit
-    // uint8_t i = 0;
-    // do {
-    //     *(uint8_t*)(0xB8000 + 2*i + 641) = 0x0F; // white on black
-    //     *(uint8_t*)(0xB8000 + 2*i + 640) = i;
-    // } while (++i != 0);
-
-    // while (1) asm("hlt") ;
 
     return RETVAL;
 }

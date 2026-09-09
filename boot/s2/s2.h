@@ -23,7 +23,8 @@
 #define E820_MAX_ENTRIES 128
 #define E820_ENTRY_SIZE 24
 
-/// Macros
+#define SBL_IDENTITY_MAGIC "NEKO"
+#define SBL_IDENTITY_NAME "SBLi"
 
 
 /// Structures
@@ -44,7 +45,7 @@ typedef struct __attribute__((packed)) {
 typedef struct __attribute__((packed)) {
     uint16_t magic;
     uint16_t entry_count;
-    uint16_t first; // This exists solely to point to the first memory map entry; it'll end up being occupied by part of the first memmap entry. Do not use for ANYTHING ELSE.
+    uint16_t first; // This exists solely to guide the first memory map entry; it'll end up being occupied by part of the first memmap entry. Do not use for ANYTHING ELSE.
 } SBL_E820_Header;
 
 typedef struct __attribute__((packed)) {
@@ -73,6 +74,25 @@ typedef struct __attribute__((packed)) {
     uint32_t SMBIOSLength;
     uint64_t reserved;
 } SBL_FirmwareMap;
+
+typedef struct __attribute__((packed)) {
+    uint8_t year; // something something y2k
+    uint8_t week;
+    uint8_t day;
+} SBL_BootloaderVersion;
+
+typedef struct __attribute__((packed)) {
+    uint8_t year;
+    uint8_t month;
+} SBL_ContractVersion;
+
+typedef struct __attribute__((packed)) {
+    char magic[4];
+    char name[4];
+    SBL_BootloaderVersion version;
+    SBL_ContractVersion contract;
+
+} SBL_Identity;
 
 /// Function Prototypes
 // External

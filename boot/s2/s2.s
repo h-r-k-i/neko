@@ -119,135 +119,6 @@ stage0_1:
     test ax, ax
     jnz hang3
 
-; stage2:
-;     ; the lit asks us to set the stack pointer but we did
-;     ; so we skip that and move on to
-
-;     ; S2: Query BIOS for size of lower and upper memory.
-
-;     xor ax, ax
-;     mov es, ax
-;     o32 mov eax, 0x0000E820
-;     o32 xor ebx, ebx
-;     o32 mov ecx, 0x00000018
-;     o32 mov edx, 0x534D4150
-;     mov di, smap_offst
-;     int 0x15
-
-;     ; check if this even worked
-;     jc legacy_memcheck
-;     o32 cmp eax, 0x534D4150
-;     jne legacy_memcheck
-;     o32 cmp ebx, 0
-;     je stage3_2
-
-;     ; if it did, increment the memmap size by 1
-;     mov dx, [smap_size]
-;     inc dx
-;     mov [smap_size], dx
-
-;     add di, 24
-;     memloop:
-;         o32 mov eax, 0x0000E820
-;         o32 mov ecx, 0x00000018
-;         o32 mov edx, 0x534D4150
-;         int 0x15
-
-;         jc legacy_memcheck
-;         o32 cmp eax, 0x534D4150
-;         jne legacy_memcheck
-;         o32 test ebx, ebx
-;         jz stage3_2
-
-;         mov dx, [smap_size]
-;         inc dx
-;         mov [smap_size], dx
-        
-;         add di, 0x0018
-;         pusha
-;         cmp dx, 128
-;         jae memcheck_suffix ; if we're at 128 entries, we don't want to overflow the buffer so we just stop here
-;         popa
-
-;         jmp memloop
-
-;     memcheck_suffix:
-;         mov ah, 0x13
-;         mov al, 0x01
-;         mov bh, 0
-;         mov bl, 0x07
-;         mov dh, [row]
-;         xor dl, dl
-;         mov cx, m5l
-;         push ds
-;         pop es
-;         mov bp, m5
-;         int 0x10
-;         inc dh
-;         mov [row], dh
-    
-;     legacy_memcheck:
-;         mov ah, 0x13
-;         mov al, 0x01
-;         mov bh, 0
-;         mov bl, 0x07
-;         mov dh, [row]
-;         xor dl, dl
-;         mov cx, m3l
-;         push ds
-;         pop es
-;         mov bp, m3
-;         int 0x10
-;         inc dh
-;         mov [row], dh
-
-;         ; Report legacy use
-;         mov word ax, [SBL_Data + 24]
-;         or ax, 0x0001
-;         mov [SBL_Data + 24], ax
-
-;         ; configure node
-;         mov bx, [smap]
-;         mov word [bx], 0xE801
-;         mov ax, bx
-;         mov bx, [SBL_Node]
-;         mov word [bx], ax
-;         mov ax, bx
-;         add ax, 0x0004
-;         mov word [bx + 2], ax
-;         mov [SBL_Node], ax
-
-
-;         mov si, [smap]
-
-;         mov ax, 0xE801
-;         int 0x15
-;         jc memfail
-;         cmp cx, 0
-;         je memfail
-
-;         mov [si + 2], ax
-;         mov [si + 4], bx
-;         mov [si + 6], cx
-;         mov [si + 8], dx
-;         xor ax, ax
-;         jmp stage3_1
-
-; stage3_1:
-;     jmp stage3
-
-; stage3_2:
-;     ; configure node
-;     mov bx, [smap]
-;     mov word [bx], 0xE820
-;     mov ax, bx
-;     mov bx, [SBL_Node]
-;     mov word [bx], ax
-;     mov ax, bx
-;     add ax, 0x0004
-;     mov word [bx + 2], ax
-;     mov [SBL_Node], ax
-
 
 ; S3: Read kernel from disk to lower memory.
 stage3:
@@ -450,6 +321,11 @@ stage8:
     jmp dword 0x08:0x8000
     ; jmp hang2
     ; jmp hang2
+
+ultrahang:
+    cli
+    hlt
+    jmp ultrahang
 
 [bits 16]
 hang:

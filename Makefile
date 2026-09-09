@@ -85,7 +85,7 @@ $(BOOT2_HLP): $(BOOT2_HELPASM)
 	nasm -f elf32 $< -o $@
 
 $(BOOT2_ELF): $(BOOT2_OBJ) $(BOOT2_COBJ) $(BOOT2_LD) $(BOOT2_HLP)
-	$(LD) -m elf_i386 -T $(BOOT2_LD) -o $@ $(BOOT2_OBJ) $(BOOT2_COBJ) $(BOOT2_HLP)
+	$(LD) -m elf_i386 -T $(BOOT2_LD) -o $@ $(BOOT2_OBJ) $(BOOT2_COBJ) $(BOOT2_HLP) -Map=$(BUILD_BIN)/s2.map
 
 $(BOOT2_BIN): $(BOOT2_ELF)
 	$(OBJ) -O binary $< $@

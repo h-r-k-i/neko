@@ -114,7 +114,7 @@ void s3_main(uint32_t eax, uint32_t ebx, uint32_t edx) {
             enableLongMode(page_map_level_4, eax, ebx, edx); // idk what edx is doing here im afraid to change it
         #endif // DEBUG
 
-        // enableLongMode(page_map_level_4, eax, ebx, edx);
+        enableLongMode(page_map_level_4, eax, ebx, edx);
 
         hang(); // if we return from enableLongMode() then something went wrong and we should hang ourselves
     }

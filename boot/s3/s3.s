@@ -85,6 +85,6 @@ boot_eax resd 1
 boot_ebx resd 1
 boot_edx resd 1
 
-
-times (0xC800 - 0x8000) - ($ - $$) - 4 resb 0
+section .text
+times (0xC800 - 0x8000) - ($ - $$) - 4 db 1
 dd 0x75726168
