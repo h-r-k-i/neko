@@ -319,7 +319,7 @@ stage7b:
 stage8:
     cli
     o32 mov esp, 0x7000 - 1 ; RM Stack Top
-    o32 mov ebx, smap       ; Pointer to SMAP
+    o32 mov ebx, SBL_Data   ; Pointer to SBL Data structure
     o32 mov eax, 0x4F4B454E ; NEKO (Magic Number)
     ; jmp hang2
     jmp dword 0x08:0x8000
@@ -344,42 +344,6 @@ hang:
     mov [row], dh
     hlt
     jmp hang
-
-memfail:
-    mov bx, SBL_Data
-    add bx, 16
-    mov ax, [bx]
-    mov cx, 0x0001
-    not cx
-    and ax, cx
-    mov word [bx], ax
-
-    mov bx, SBL_Data
-    add bx, 24
-    mov ax, [bx]
-    or ax, 0x0001
-    mov word [bx], ax
-
-
-    mov word [0x3040], 0x0001
-
-    memfailhang:
-    cli
-    mov ah, 0x13
-    mov al, 0x01
-    mov bh, 0
-    mov bl, 0x07
-    mov dh, [row]
-    xor dl, dl
-    mov cx, m4l
-    push ds
-    pop es
-    mov bp, m4
-    int 0x10
-    inc dh
-    mov [row], dh
-    hlt
-    jmp hang2
     
 enable_A20: ; no comments fuck you
     cli
@@ -468,9 +432,7 @@ hang4:
 
 boot_drive: db 0
 row: db 0
-
 lba_state: dw 0
-chs_retries: db 0
 
 ; messages
 m1 db 'Loading from hard drive...', 0x0a, 0x0d, 0x00
@@ -479,26 +441,11 @@ m1l equ $ - m1
 m2 db 'E: Something happened. Please check drive state.', 0x0a, 0x0d, 0x00
 m2l equ $ - m2
 
-m3 db 'Falling back to legacy memory detection...', 0x0a, 0x0d, 0x00
-m3l equ $ - m3
-
-m4 db 'E: failed to get memory size (consider upgrading your device past 1994)', 0x0a, 0x0d, 0x00
-m4l equ $ - m4
-
-m5 db 'W: BIOS may be corrupt, deciding this is enough enough memory to map...', 0x0a, 0x0d, 0x00
-m5l equ $ - m5
-
 m6 db 'E: Could not use LBA reading, quitting! (get a PC from this millenium, asshole)', 0x0a, 0x0d, 0x00
 m6l equ $ - m6
 
-m7 db 'I: A20 pre-enabled! (This OS may be on an emulator!)', 0x0a, 0x0d, 0x00
-m7l equ $ - m7
-
 m8 db 'Enabling A20!', 0x0a, 0x0d, 0x00
 m8l equ $ - m8
-
-m10 db "E: dawg you can't even access A20 on this shit kek", 0x0a, 0x0d, 0x00
-m10l equ $ - m10
 
 m11 db "E: get this fucking function to work you idiot", 0x0a, 0x0d, 0x00
 m11l equ $ - m11
@@ -509,28 +456,15 @@ m12l equ $ - m12
 DAP_S3:
     db 0x10         ; Size of DAP
     db 0            ; Reserved
-    dw s3_sectors   ; Sectors to read; hardcoded to 36
+    dw s3_sectors   ; Sectors to read; hardcoded to 48 for now
     dw s3_loc       ; Offset to load to
     dw 0x0000       ; Segment to load to
-    dq 17           ; Starting LBA sector
+    dq 25           ; Starting LBA sector (zero-based)
 
-;DAP_S1K:
-;    db 0x10         ; you know the drill
-;    db 0            ; reserved
-;    dw s1k_sectors  ; 
-
-; DAP_NEKO:
-
-SBL_Data equ 0x3000
-SBL_Node: dd 0x3040
-
-smap: dw 0x3440
-smap_size equ 0x3442
-smap_offst equ 0x3444
+SBL_Data equ 0x4000
 
 s3_loc equ 0x7F00
 s3_sectors equ 48
-s1k_sectors equ 1152
 
 ImpArea equ $
 

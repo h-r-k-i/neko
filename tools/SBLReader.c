@@ -3,8 +3,7 @@
 #include <inttypes.h>
 #include <string.h>
 
-#define MAP_START   0x3000
-#define MAP_END     0x8000
+#define MAP_START   0x4000
 
 
 uint32_t min(uint32_t a, uint32_t b) {

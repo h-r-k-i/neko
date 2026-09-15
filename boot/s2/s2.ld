@@ -14,8 +14,8 @@ SECTIONS
 
         __s2_end = .;
 
-        . = 0x2000 - 2;
+        . = 0x3000 - 2;
         SHORT(0xABAB);
     }
-    ASSERT(__s2_end <= ADDR(.text) + 0x2000 - 2, "Stage 2 end is beyond the allowed size")
+    ASSERT(__s2_end <= ADDR(.text) + 0x3000 - 2, "Stage 2 end is beyond the allowed size")
 }

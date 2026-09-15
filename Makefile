@@ -129,7 +129,7 @@ $(KERNEL_BIN): kernel.o consoleio.o
 $(OS_IMG): $(BOOT_BIN) $(KERNEL_BIN)
 	dd if=/dev/zero of=$(OS_IMG) bs=512 count=131072
 	dd if=$(BOOT_BIN) of=$(OS_IMG) conv=notrunc
-	dd if=$(KERNEL_BIN) of=$(OS_IMG) seek=54 conv=notrunc
+	dd if=$(KERNEL_BIN) of=$(OS_IMG) seek=74 conv=notrunc
 
 run: $(OS_IMG)
 	qemu-system-x86_64 -drive format=raw,file=$(OS_IMG),if=ide -serial stdio -m 6G -d int,cpu_reset -no-reboot -D qemu.log -cpu host -accel kvm

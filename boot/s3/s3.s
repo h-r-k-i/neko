@@ -69,6 +69,12 @@ _start:
 
     mov esp, 0xF000
 
+    ; mov ax, 0x0761 ; white on black 'a'
+    ; mov ebx, 0xB8000
+    ; mov [ebx], ax
+    ; jmp $
+
+
     push dword [boot_edx]
     push dword [boot_ebx]
     push dword [boot_eax]

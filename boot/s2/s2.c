@@ -156,7 +156,7 @@ uint16_t sbl_build(uint16_t location, uint16_t impArea, uint16_t impAreaSize) { 
     bootloader_header->checksum = 0;          // Checksum (to be calculated later)
     bootloader_header->flags = 0;          // Flags (to be set later)
     bootloader_header->sgalf = 0;          // Antiflags (to be set later)
-    bootloader_header->first = 0x3040;     // First data point, set to 0x3040 because i can
+    bootloader_header->first = location + sizeof(SBL_Data);     // First data point
 
     // Data structures are initially built at 0x3040 and each are in total 32-bit
     SBL_Node* SBL_NodeMap = (SBL_Node*)(bootloader_header->first);
@@ -269,6 +269,7 @@ uint16_t sbl_build(uint16_t location, uint16_t impArea, uint16_t impAreaSize) { 
             }
         }
     }
+    
     // else try the hard way out (which is basically the same thing but in an upper page)
     if (RSDPLoc == 0) {
         for (uint32_t i = 0xE0000; i < 0xFFFFF; i += 16) {
@@ -390,13 +391,14 @@ uint16_t sbl_build(uint16_t location, uint16_t impArea, uint16_t impAreaSize) { 
     bootloader_header->sgalf |= 1ULL << 62; // mark bootloader info as complete
     bootloader_header->flags |= 1ULL << 62; // mark bootloader info as incomplete
 
-    *(uint16_t*)(0xB8000) = (((uint16_t)0x0F << 8)|'A'); // white on black A printed to screen in the middle of bumfuck nowhere which actually is special because its an oasis of vga text mode
-    while (1) __asm__ volatile("hlt"); // commit suicide [todo: remove this]
-
+    
     // Build bootloader identity info
     SBL_NodeMap = _SBL_NodeMap_fw(SBL_NodeMap);
     SBL_NodeMap->data = (uint16_t)(SBL_NodeMap + 1);
     SBL_NodeMap->next = 0x0000; // fuck it write straight into the fucking IVT
+    // volatile uint64_t x = bootloader_header->flags;
+    // // x |= 1ULL << 63;
+    // ((uint32_t*)x)[1] |= 0x80000000U;
     bootloader_header->flags |= 0x1ULL << 63;
     SBL_Identity* identity = (SBL_Identity*)(SBL_NodeMap->data);
     SBL_memcpy(identity->magic, SBL_IDENTITY_MAGIC, sizeof(identity->magic));
