@@ -391,7 +391,7 @@ uint16_t sbl_build(uint16_t location, uint16_t impArea, uint16_t impAreaSize) { 
 
     // Build bootloader map info
     SBL_NodeMap = _SBL_NodeMap_fw(SBL_NodeMap);
-    SBL_NodeMap->data = 0;
+    SBL_NodeMap->data = 69; // i am so fucking funny
     SBL_NodeMap->next = (uint16_t)(SBL_NodeMap + 1);
     bootloader_header->sgalf |= 1ULL << 62; // mark bootloader info as complete
     bootloader_header->flags |= 1ULL << 62; // mark bootloader info as incomplete
