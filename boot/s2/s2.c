@@ -348,29 +348,34 @@ uint16_t sbl_build(uint16_t location, uint16_t impArea, uint16_t impAreaSize) { 
 
         // i see we're gonna have to parse our data
         if ((bootloader_header->flags & 0x1) == 0 && (bootloader_header->sgalf & 0x1) == 1) if (((SBL_88_Map*)(((SBL_Node*)(bootloader_header->first))->data))->memory_above_1M < 2048) return -3;
-        else if ((bootloader_header->sgalf & 0x1) == 0) {
+        else if ((bootloader_header->flags & 0x1) == 1 && (bootloader_header->sgalf & 0x1) == 0) {
             E820h_Map_Entry* e820map = (E820h_Map_Entry*)(((SBL_E820_Header*)(((SBL_Node*)(bootloader_header->first))->data))->first);
             uint16_t e7122222222 = 0; // im running out of varnames
             for (uint16_t i = 0; i < ((SBL_E820_Header*)(((SBL_Node*)(bootloader_header->first))->data))->entry_count; i++) {
-                if (e820map[i].Address > 0x100000 && e820map[i].Size >= 0x100000 && e820map[i].Type == 0x01) {
+                if (e820map[i].Address >= 0x100000 && e820map[i].Size >= 0x100000 && e820map[i].Type == 0x01) {
                     e7122222222 = i;
                     vbeDataPointer = e820map[i].Address;
                     break;
                 }
             }
         }
-        else if ((bootloader_header->sgalf & 0x1) == 1) if (((SBL_E801_Map*)(((SBL_Node*)(bootloader_header->first))->data))->configured_memory_1k < 2048 && ((SBL_E801_Map*)(((SBL_Node*)(bootloader_header->first))->data))->extended_memory_1k < 2048) return -3;
+        else if ((bootloader_header->flags & 0x1) == 1 && (bootloader_header->sgalf & 0x1) == 1) if (((SBL_E801_Map*)(((SBL_Node*)(bootloader_header->first))->data))->configured_memory_1k < 2048 && ((SBL_E801_Map*)(((SBL_Node*)(bootloader_header->first))->data))->extended_memory_1k < 2048) return -3;
         else return -3; // this state should be impossible
+
+        dib->VGAModePointer = vbeDataPointer;
+        dib->count = 0;
         
         for (uint32_t i = 0; ((uint16_t*)(vbeModePointer))[i] != 0xFFFF; i++) {
             rest = PopulateVBEMode(((uint32_t)&vbeMib >> 4) << 16 | ((uint32_t)&vbeMib & 0xF),
                             ((uint16_t*)(vbeModePointer))[i]);
             if ((rest & 0xFF00) != 0) continue;
-            if (dib->count == 0) dib->VGAModePointer = vbeDataPointer;
             SBL_memcpy((void*)vbeDataPointer, &vbeMib, 256);
             vbeDataPointer += 256;
-            if (vbeDataPointer == 0x200000) break;
+            if (vbeDataPointer >= 0x200000) break;
+            dib->count++;
         }
+
+        SBL_memcpy(dib->Signature, "visbvisbvisbvisb", 16);
     }
     else {
         stupidHeaderIPutHereForEase:

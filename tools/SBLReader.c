@@ -85,6 +85,14 @@ typedef struct __attribute__((packed)) {
 
 } SBL_Identity;
 
+typedef struct __attribute__((packed)) {
+    char Signature[16];
+    uint32_t VGAPointer;
+    uint32_t count;
+    uint32_t VGAModePointer;
+    uint32_t resv;
+} SBL_DisplayInfoBlock;
+
 
 uint32_t main(int argc, char *argv[]) {
     if (argc != 2) {
@@ -363,6 +371,7 @@ uint32_t main(int argc, char *argv[]) {
 
     // Display data
     if (present & 0x1ULL << 17) {
+        SBL_DisplayInfoBlock dib;
         if (fseek(file, node.next, SEEK_SET) != 0) {
             perror("Seek failure");
             fclose(file);
@@ -375,7 +384,23 @@ uint32_t main(int argc, char *argv[]) {
             return 1;
         }
 
-        printf("\tVBE info block at 0x%04" PRIx16 "\n", node.data);
+        if (fseek(file, node.data, SEEK_SET) != 0) {
+            perror("Seek failure");
+            fclose(file);
+            return -1;
+        }
+
+        if (fread(&dib, sizeof dib, 1, file) != 1) {
+            perror("Read failure");
+            fclose(file);
+            return 1;
+        }
+
+        printf("Display info:\n");
+        printf("\tSignature: %.16s\n", dib.Signature);
+        printf("\tVGA Data Pointer: 0x%08" PRIx32 "\n", dib.VGAPointer);
+        printf("\tVGA Mode Array Pointer: 0x%08" PRIx32 "\n", dib.VGAModePointer);
+        printf("\tCount: %" PRIu32 "\n", dib.count);
     }
 
     putchar('\n');
