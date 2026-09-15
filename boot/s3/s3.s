@@ -53,6 +53,7 @@ section .text
 _start:
     cli
     cld
+    
 
     mov [boot_eax], eax
     mov [boot_ebx], ebx

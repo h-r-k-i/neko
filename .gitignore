@@ -135,7 +135,7 @@ boot.bin.D
 .claude/
 
 # other crap singled out because screw you
-pmemsave
+pmemsave*
 memimg.mem
 
 # the shit in tools tends to be shit that doesn't need to be tracked

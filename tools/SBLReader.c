@@ -1,6 +1,7 @@
 #include <stdint.h>
 #include <stdio.h>
 #include <inttypes.h>
+#include <string.h>
 
 #define MAP_START   0x3000
 #define MAP_END     0x8000
@@ -54,21 +55,39 @@ typedef struct __attribute__((packed)) {
 // vers numbers but theyre here im fucking tired 128-bit-aligned
 // if you hate it write your own shitty catgirl-themed bootloader
 typedef struct __attribute__((packed)) {
-    uint64_t magic;
+    char magic[8];
     uint64_t entry_count;
 
     uint32_t RSDPPointer;
     uint32_t RSDPLength;
-    uint32_t FADTPointer;
-    uint32_t FADTLength;
+    uint64_t resv1;
 
     uint32_t SMBIOSPointer;
     uint32_t SMBIOSLength;
-    uint64_t reserved;
+    uint64_t resv2;
 } SBL_FirmwareMap;
 
+typedef struct __attribute__((packed)) {
+    uint8_t year; // something something y2k
+    uint8_t week;
+    uint8_t day;
+} SBL_BootloaderVersion;
 
-int main(int argc, char *argv[]) {
+typedef struct __attribute__((packed)) {
+    uint8_t year;
+    uint8_t month;
+} SBL_ContractVersion;
+
+typedef struct __attribute__((packed)) {
+    char magic[4];
+    char name[4];
+    SBL_BootloaderVersion version;
+    SBL_ContractVersion contract;
+
+} SBL_Identity;
+
+
+uint32_t main(int argc, char *argv[]) {
     if (argc != 2) {
         fprintf(stderr, "Usage: %s <mem.bin>\n", argv[0]);
         return 1;
@@ -113,12 +132,26 @@ int main(int argc, char *argv[]) {
 
     uint64_t present = data.flags | data.sgalf;
     printf("Present data:\n");
-    if (present & 0x1ULL <<  0) printf("\tMemory map\n");
-    if (present & 0x1ULL <<  4) printf("\tCPU Features\n");
-    if (present & 0x1ULL <<  7) printf("\tFirmware\n");
-    if (present & 0x1ULL << 17) printf("\tDisplay\n");
-    if (present & 0x1ULL << 62) printf("\tBootloader\n");
-    if (present & 0x1ULL << 63) printf("\tIdentity\n");
+    printf("\tMemory map");
+    if (data.flags & (0x1ULL <<  0) && data.sgalf & (0x1ULL <<  0)) printf(" (failed)");
+    if (data.flags & (0x1ULL <<  0) && data.sgalf & (0x1ULL <<  1)) printf(" (88h format)");
+    if (data.flags & (0x1ULL <<  1) && data.sgalf & (0x1ULL <<  0)) printf(" (legacy format)");
+    if (data.flags & (0x1ULL <<  1) && data.sgalf & (0x1ULL <<  1)) printf(" (modern format)");
+    printf("\n");
+    if (present & 0x1ULL <<  4) printf("\tCPU Features");
+    if (data.flags & (0x1ULL <<  4) && data.sgalf & (0x1ULL <<  4)) printf(" (malformed)");
+    printf("\n");
+    if (present & 0x1ULL <<  7) printf("\tFirmware");
+    if (data.flags & (0x1ULL <<  7) && data.sgalf & (0x1ULL <<  7)) printf(" (malformed)");
+    printf("\n");
+    if (present & 0x1ULL << 17) printf("\tDisplay");
+    if (data.flags & (0x1ULL << 17) && data.sgalf & (0x1ULL << 17)) printf(" (malformed)");
+    printf("\n");
+    if (present & 0x1ULL << 62) printf("\tBootloader");
+    if (data.flags & (0x1ULL << 62) && data.sgalf & (0x1ULL << 62)) printf(" (malformed)");
+    printf("\n");
+    if (present & 0x1ULL << 63) printf("\tIdentity");
+    if (data.flags & (0x1ULL << 63) && data.sgalf & (0x1ULL << 63)) printf(" (malformed)");
     printf("\n");
 
     if (fseek(file, data.first, SEEK_SET) != 0) {
@@ -287,6 +320,83 @@ int main(int argc, char *argv[]) {
 
     putchar('\n');
 
+    // Firmware data
+    if (present & 0x1ULL <<  7) {
+        if (fseek(file, node.next, SEEK_SET) != 0) {
+            perror("Seek failure");
+            fclose(file);
+            return -1;
+        }
+
+        if (fread(&node, sizeof node, 1, file) != 1) {
+            perror("Read failure");
+            fclose(file);
+            return 1;
+        }
+
+        SBL_FirmwareMap fm;
+        if (fseek(file, node.data, SEEK_SET) != 0) {
+            perror("Seek failure");
+            fclose(file);
+            return -1;
+        }
+        if (fread(&fm, sizeof fm, 1, file) != 1) {
+            perror("Read failure");
+            fclose(file);
+            return 1;
+        }
+
+        printf("Firmware data:\n");
+        printf("\tMagic: %.8s\n", fm.magic);
+        printf("\tEntries: %" PRIu64 "\n", fm.entry_count);
+        if (fm.entry_count == 0 || fm.entry_count > 8 ||
+            fm.resv1 != 0 || fm.resv2 != 0 || memcmp(fm.magic, "gon.kms!", 8) != 0) {
+            printf("\tNo valid ACPI/SMBIOS data present.\n");
+        }
+        printf("\n");
+        printf("\tRSDP Pointer: 0x%08" PRIx32 "\n", fm.RSDPPointer);
+        printf("\tRSDP Length: %" PRIu32 " bytes\n", fm.RSDPLength);\
+        printf("\tSMBIOS Pointer: 0x%08" PRIx32 "\n", fm.SMBIOSPointer);
+        printf("\tSMBIOS Length: %" PRIu32 " bytes\n", fm.SMBIOSLength);
+    }
+
+    putchar('\n');
+
+    // Display data
+    if (present & 0x1ULL << 17) {
+        if (fseek(file, node.next, SEEK_SET) != 0) {
+            perror("Seek failure");
+            fclose(file);
+            return -1;
+        }
+
+        if (fread(&node, sizeof node, 1, file) != 1) {
+            perror("Read failure");
+            fclose(file);
+            return 1;
+        }
+
+        printf("\tVBE info block at 0x%04" PRIx16 "\n", node.data);
+    }
+
+    putchar('\n');
+
+    // Bootloader data
+    if (present & 0x1ULL << 62) {
+        if (fseek(file, node.next, SEEK_SET) != 0) {
+            perror("Seek failure");
+            fclose(file);
+            return -1;
+        }
+
+        if (fread(&node, sizeof node, 1, file) != 1) {
+            perror("Read failure");
+            fclose(file);
+            return 1;
+        }
+    }
+
+    putchar('\n');
     
     // Bootloader identity statement
     if (present & 0x1ULL << 63) { // this should always work but who knows
@@ -302,24 +412,23 @@ int main(int argc, char *argv[]) {
             return 1;
         }
         printf("Bootloader identity statement:\n");
-        printf("\tThis identity map produced by ");
-        char idc = 255;
-        for (uint16_t i = 0; idc != 0; i++) {
-            if (fseek(file, node.data + i, SEEK_SET) != 0) {
-                perror("Seek failure");
-                fclose(file);
-                return -1;
-            }
-
-            if (fread(&idc, sizeof idc, 1, file) != 1) {
-                perror("Read failure");
-                fclose(file);
-                return 1;
-            }
-
-            if (idc == 0) putchar('\n');
-            else putchar(idc);
+        SBL_Identity identity;
+        if (fseek(file, node.data, SEEK_SET) != 0) {
+            perror("Seek failure");
+            fclose(file);
+            return -1;
         }
+
+        if (fread(&identity, sizeof identity, 1, file) != 1) {
+            perror("Read failure");
+            fclose(file);
+            return 1;
+        }
+
+        printf("\tMagic: %.4s\n", identity.magic);
+        printf("\tName: %.4s\n", identity.name);
+        printf("\tProduced by: %.3s v%u.%u.%u\n", identity.name, identity.version.year, identity.version.week, identity.version.day);
+        printf("\tContract: SBLc v%u.%u\n", identity.contract.year, identity.contract.month);
     }
 
     // exit

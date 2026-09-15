@@ -108,9 +108,13 @@ start:
     cmp ax, 7
     jne hang3
 
+    jmp stage4
+
 stage0_1:
     ; S1: Build the SBL Data structure
 
+    cpush ImpAreaSize
+    cpush ImpArea
     cpush SBL_Data
     ccall sbl_build
     add sp, 4
@@ -179,7 +183,7 @@ stage3:
 
     final:
         nop ; lmao
-        jmp stage4
+        jmp stage6
 
 ; S4: Enable A20 line.
 stage4:
@@ -232,7 +236,7 @@ stage4:
 stage5:
     nop ; lol part 2: electric boogaloo
     cli
-    jmp stage6
+    jmp stage0_1
 
 ; S6: Set up Global Descriptor Table ahead of Protected Mode
 stage6:
@@ -322,11 +326,6 @@ stage8:
     ; jmp hang2
     ; jmp hang2
 
-ultrahang:
-    cli
-    hlt
-    jmp ultrahang
-
 [bits 16]
 hang:
     cli
@@ -364,7 +363,7 @@ memfail:
 
     mov word [0x3040], 0x0001
 
-
+    memfailhang:
     cli
     mov ah, 0x13
     mov al, 0x01
@@ -466,9 +465,6 @@ hang4:
     hlt
     jmp hang2
 
-shit_isr:
-    iret
-
 
 boot_drive: db 0
 row: db 0
@@ -500,9 +496,6 @@ m7l equ $ - m7
 
 m8 db 'Enabling A20!', 0x0a, 0x0d, 0x00
 m8l equ $ - m8
-
-m9 db "E: I don't even know how this happens but your memory is just fucked.", 0x0a, 0x0d, 0x00
-m9l equ $ - m9
 
 m10 db "E: dawg you can't even access A20 on this shit kek", 0x0a, 0x0d, 0x00
 m10l equ $ - m10
@@ -536,8 +529,13 @@ smap_size equ 0x3442
 smap_offst equ 0x3444
 
 s3_loc equ 0x7F00
-s3_sectors equ 36
+s3_sectors equ 48
 s1k_sectors equ 1152
+
+ImpArea equ $
+
+shit_isr:
+    iret
 
 GDT_START:
     dq 0                    ; HAS TO BE NULL
@@ -555,6 +553,8 @@ IDT:
 IDTR:
     dw (256 * 8) - 1
     dd IDT
+
+ImpAreaSize equ $ - ImpArea
 
 ; padding + 0xABAB signature are appended by the linker script (s2.ld),
 ; since this file no longer knows the final size once s2.c is linked in

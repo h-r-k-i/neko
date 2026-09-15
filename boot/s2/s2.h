@@ -62,17 +62,16 @@ typedef struct __attribute__((packed)) {
 } SBL_88_Map;
 
 typedef struct __attribute__((packed)) {
-    uint64_t magic;
+    char magic[8];
     uint64_t entry_count;
 
     uint32_t RSDPPointer;
     uint32_t RSDPLength;
-    uint32_t FADTPointer;
-    uint32_t FADTLength;
+    uint64_t resv1;
 
     uint32_t SMBIOSPointer;
     uint32_t SMBIOSLength;
-    uint64_t reserved;
+    uint64_t resv2;
 } SBL_FirmwareMap;
 
 typedef struct __attribute__((packed)) {
@@ -94,13 +93,23 @@ typedef struct __attribute__((packed)) {
 
 } SBL_Identity;
 
+typedef struct __attribute__((packed)) {
+    char Signature[16];
+    uint32_t VGAPointer;
+    uint32_t count;
+    uint32_t VGAModePointer;
+    uint32_t resv;
+} SBL_DisplayInfoBlock;
+
 /// Function Prototypes
 // External
 extern uint16_t SBL_E820(uint32_t segment_offset, uint32_t* continuation_val);
 extern uint16_t SBL_E801(uint32_t segment_offset);
 extern uint16_t SBL_88(uint32_t segment_offset);
 extern uint16_t SBL_LM_Entropy(void);
+extern uint16_t PopulateVBEInfo(uint32_t segment_offset);
+extern uint16_t PopulateVBEMode(uint32_t segment_offset, uint32_t mode);
 
 // Internal
 SBL_Node* _SBL_NodeMap_fw(SBL_Node* node);
-void SBL_memcpy(void* dest, const void* src, uint16_t count);
+void SBL_memcpy(void* dest, const void* src, uint32_t count);

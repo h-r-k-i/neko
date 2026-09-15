@@ -112,46 +112,31 @@ start:
 
     ; if fail, try a different way
     jc sector_read_hell_01
-    jmp final
+    jmp epicgames
 
     sector_read_hell_01:
+       jmp hang ; removing support for CHS; SBL requires INT 13h extensions for disk access.
+    
+    epicgames: ; haha get it? cus unreal engine? unreal mode? ok ill kill myself now
+        cli
+        lgdt [gdtinfo]
+        mov eax, cr0
+        or al, 1
+        mov cr0, eax
+        jmp 0x0008:subpmode
 
-        ; pop SC off the stack
-        pop dx
+        subpmode:
+            mov bx, 0x10
+            mov ds, bx
 
-        ; push FL onto the stack
-        mov dx, 0x464C
-        push dx
-        ; fall into sector_read_hell
+            and al, 0xFE
+            mov cr0, eax
+            jmp 0x0000:final
 
-    sector_read_hell:
-        ; now that we've confirmed that we can't use the modern disk reader,
-        ; use the legacy one to read into s2
-
-
-
-        mov ah, 0x02
-        mov al, 17
-        mov ch, 0
-        mov cl, 2
-        mov dh, 0
-        mov dl, [boot_drive]
-        
-        mov bx, 0x0100
-        mov es, bx
-        xor bx, bx
-        
-        int 0x13
-        jnc final
-        
-        inc byte [retry_count]
-        cmp byte [retry_count], 4
-        jae hang
-        jmp sector_read_hell
 
     final:
         ; if all passes jump into s2
-
+        sti
         mov dl, [boot_drive]
         jmp 0x0000:0x1000
 
@@ -167,10 +152,20 @@ start:
     DAP:
         db 0x10 ; size of DAP structure
         db 0 ; reserved
-        dw 16 ; number of sectors to read
+        dw 17 ; number of sectors to read
         dw 0x1000 ; offset to read into
         dw 0x0000 ; segment to read into
         dq 1 ; starting LBA sector (sector 1, which is the second sector on disk)
+    
+    gdtinfo:
+        dw gdt_end - gdt - 1
+        dd gdt
+    
+    gdt:
+        dq 0x0000000000000000   ; null descriptor
+        dq 0x00009A000000FFFF   ; flat code segment
+        dq 0x00CF92000000FFFF   ; flat data segment
+    gdt_end:
     
     times 510 - ($ - $$) db 0
     dw 0xAA55

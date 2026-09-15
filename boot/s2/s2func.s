@@ -19,7 +19,7 @@
 %define arg_offset [bp + 0x06]
 %define continuation_pointer [bp + 0x0A]
 
-global SBL_E820, SBL_E801, SBL_88, SBL_LM_Entropy
+global SBL_E820, SBL_E801, SBL_88, SBL_LM_Entropy, PopulateVBEInfo, PopulateVBEMode
 
 EID equ 1 << 21
 CPUID_EXT equ 0x80000000
@@ -262,6 +262,69 @@ SBL_LM_Entropy:
         jmp .SBL_LM_ENTROPY_END
 
     .SBL_LM_ENTROPY_END:
+        pop bx
+        pop di
+        pop es
+        pop bp
+        retf
+
+PopulateVBEInfo:
+    ; mov ax, 0xFFFF
+    ; retf
+    ; variables:
+    ; [bp + 0x00]: original base pointer (NOT A VARIABLE DO NOT FUCKING USE)
+    ; [bp + 0x02]: return address (see warning above)
+    ; [bp + 0x06]: offset (lower half of uint32_t segment:offset pair)
+    ; [bp + 0x08]: segment (upper half of uint32_t segment:offset pair)
+    ; of note: this segment:offset pair is used to point to the
+    ; memory map data structure in memory
+    push bp
+    mov bp, sp
+    push es
+    push di
+    push bx
+    
+    mov di, arg_offset
+    mov ax, arg_segment
+    mov es, ax
+
+    mov ax, 0x4F00
+    int 0x10
+
+    .PopulateVBEInfo_END:
+        pop bx
+        pop di
+        pop es
+        pop bp
+        retf
+
+PopulateVBEMode:
+    ; mov ax, 0xFFFF
+    ; retf
+    ; variables:
+    ; [bp + 0x00]: original base pointer (NOT A VARIABLE DO NOT FUCKING USE)
+    ; [bp + 0x02]: return address (see warning above)
+    ; [bp + 0x06]: offset (lower half of uint32_t segment:offset pair)
+    ; [bp + 0x08]: segment (upper half of uint32_t segment:offset pair)
+    ; [bp + 0x0A]: mode (uint16_t)
+    ; [bp + 0x0C]: upper half of uint32_t mode data but this should always be 0 because the mode is a 16-bit value
+    ; of note: this segment:offset pair is used to point to the
+    ; memory map data structure in memory
+    push bp
+    mov bp, sp
+    push es
+    push di
+    push bx
+    
+    mov di, arg_offset
+    mov ax, arg_segment
+    mov es, ax
+
+    mov ax, 0x4F01
+    mov cx, [bp + 0x0A]
+    int 0x10
+
+    .PopulateVBEMode_END:
         pop bx
         pop di
         pop es
