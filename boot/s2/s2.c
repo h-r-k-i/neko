@@ -131,6 +131,27 @@ uint8_t ValidateRSDP(void* rsdp) {
     return sum;
 }
 
+typedef struct __attribute__((packed)) {
+    uint32_t location;
+    uint32_t size;
+} SBL_BMMEntry;
+
+typedef struct __attribute__((packed)) {
+    SBL_BMMEntry IVT_BDA;
+    SBL_BMMEntry PM_IVT_GDT;
+    SBL_BMMEntry ContractArea;
+    SBL_BMMEntry MemoryMap;
+    SBL_BMMEntry BootloaderMap;
+    SBL_BMMEntry DisplayInfoBlock;
+    SBL_BMMEntry VBEMIB;
+    SBL_BMMEntry ACPI;
+    SBL_BMMEntry SMBIOS;
+    SBL_BMMEntry Identity;
+    SBL_BMMEntry S2;
+    SBL_BMMEntry S1;
+    SBL_BMMEntry S3;
+} SBL_TempBMM;
+
 
 uint16_t sbl_build(uint16_t location, uint16_t impArea, uint16_t impAreaSize) { // uint16_t idt_location, uint16_t idt_handler_loc, uint16_t gdt_location
 
@@ -152,6 +173,23 @@ uint16_t sbl_build(uint16_t location, uint16_t impArea, uint16_t impAreaSize) { 
      * 0x0010-0x0013: First data point (64-bit, offset to the first data structure)
      */
 
+    SBL_TempBMM tempBMM = {0};
+
+    tempBMM.IVT_BDA.location = 0x0000;
+    tempBMM.IVT_BDA.size = 0x500;
+    tempBMM.PM_IVT_GDT.location = impArea;
+    tempBMM.PM_IVT_GDT.size = impAreaSize;
+    tempBMM.ContractArea.location = location;
+
+    tempBMM.S2.location = 0x1000;
+    tempBMM.S2.size = 0x3000 - 0x1000;
+    tempBMM.S1.location = 0x7C00;
+    tempBMM.S1.size = 512;
+    tempBMM.S3.location = 0x8000;
+    tempBMM.S3.size = 48 * 512;
+
+    SBL_Node* MapNode;
+
     bootloader_header->magic = 0x4B4F4E45; // Magic number
     bootloader_header->checksum = 0;          // Checksum (to be calculated later)
     bootloader_header->flags = 0;          // Flags (to be set later)
@@ -161,6 +199,7 @@ uint16_t sbl_build(uint16_t location, uint16_t impArea, uint16_t impAreaSize) { 
     // Data structures are initially built at 0x3040 and each are in total 32-bit
     SBL_Node* SBL_NodeMap = (SBL_Node*)(bootloader_header->first);
     SBL_NodeMap->data = (uint16_t)SBL_NodeMap + sizeof(SBL_Node); // Memory map loc
+    tempBMM.MemoryMap.location = SBL_NodeMap->data;
     // because we're in C-land we can do some straight bullshit
     SBL_NodeMap->next = ((uint16_t)(SBL_NodeMap) + sizeof(SBL_Node) + 2 * sizeof(uint16_t) + E820_ENTRY_SIZE * E820_MAX_ENTRIES);
 
@@ -181,6 +220,7 @@ uint16_t sbl_build(uint16_t location, uint16_t impArea, uint16_t impAreaSize) { 
             if (resb != 14 && resb) break;
         } while (continuation_val != 0 && header->entry_count < E820_MAX_ENTRIES);
         SBL_NodeMap->next = ((uint16_t)(SBL_NodeMap) + sizeof(SBL_Node) + 2 * sizeof(uint16_t) + E820_ENTRY_SIZE * header->entry_count);
+        tempBMM.MemoryMap.size = sizeof(SBL_E820_Header) + E820_ENTRY_SIZE * header->entry_count;
     }
     if (resb) switch (resb) {
         case 1:
@@ -196,6 +236,7 @@ uint16_t sbl_build(uint16_t location, uint16_t impArea, uint16_t impAreaSize) { 
                 if (!resb) {
                     bootloader_header->flags |= 0x1ULL; // Mark decent memory map as successfully built
                     SBL_NodeMap->next = ((uint16_t)(SBL_NodeMap) + sizeof(SBL_Node) + 5 * sizeof(uint16_t));
+                    tempBMM.MemoryMap.size = sizeof(SBL_E801_Map);
                     break;
                 }
                 // there is no god
@@ -204,6 +245,7 @@ uint16_t sbl_build(uint16_t location, uint16_t impArea, uint16_t impAreaSize) { 
                 segment_offset = 0x0000 << 16 | (uint16_t)(&sbl88->memory_above_1M); // start of the memory info
                 resb = SBL_88(segment_offset);
                 if (!resb) {
+                    tempBMM.MemoryMap.size = sizeof(SBL_88_Map);
                     SBL_NodeMap->next = ((uint16_t)(SBL_NodeMap) + sizeof(SBL_Node) + 2 * sizeof(uint16_t));
                     break;
                 }
@@ -288,6 +330,10 @@ uint16_t sbl_build(uint16_t location, uint16_t impArea, uint16_t impAreaSize) { 
         else fw->RSDPLength = sizeof(RSDP);
     }
 
+    tempBMM.ACPI.location = fw->RSDPPointer;
+    if (fw->RSDPPointer != 0) tempBMM.ACPI.size = fw->RSDPLength;
+    else tempBMM.ACPI.size = 0;
+
     // get SMBIOS
     uint32_t SMBIOSLoc = 0;
     // this SHOULD be changed if an SMBIOS is found
@@ -330,6 +376,10 @@ uint16_t sbl_build(uint16_t location, uint16_t impArea, uint16_t impAreaSize) { 
         }
     }
 
+    tempBMM.SMBIOS.location = fw->SMBIOSPointer;
+    if (fw->SMBIOSPointer != 0) tempBMM.SMBIOS.size = fw->SMBIOSLength;
+    else tempBMM.SMBIOS.size = 0;
+
     bootloader_header->sgalf |= 1ULL << 7; // mark firmware map as done
 
     // Build display info
@@ -343,8 +393,11 @@ uint16_t sbl_build(uint16_t location, uint16_t impArea, uint16_t impAreaSize) { 
         bootloader_header->flags |= 1ULL << 17;
         dib->VGAPointer = (uint32_t)&vbe;
         VBEModeInfoBlock vbeMib = {0}; // once again stack initialization like i can afford that :3
-        uint32_t vbeModePointer = vbe.VideoModePtr[0] << 16 + vbe.VideoModePtr[1];
+        uint32_t vbeModePointer = (vbe.VideoModePtr[1] << 4) + vbe.VideoModePtr[0];
         uint32_t vbeDataPointer = 0x100000;
+
+        tempBMM.DisplayInfoBlock.location = dib->VGAPointer;
+        tempBMM.DisplayInfoBlock.size = sizeof(VBEInfoBlock);
 
         // i see we're gonna have to parse our data
         if ((bootloader_header->flags & 0x1) == 0 && (bootloader_header->sgalf & 0x1) == 1) if (((SBL_88_Map*)(((SBL_Node*)(bootloader_header->first))->data))->memory_above_1M < 2048) return -3;
@@ -371,11 +424,14 @@ uint16_t sbl_build(uint16_t location, uint16_t impArea, uint16_t impAreaSize) { 
             if ((rest & 0xFF00) != 0) continue;
             SBL_memcpy((void*)vbeDataPointer, &vbeMib, 256);
             vbeDataPointer += 256;
-            if (vbeDataPointer >= 0x200000) break;
             dib->count++;
+            if (vbeDataPointer >= 0x200000) break;
+            *((uint16_t*)(0x7000 + 2*i)) = ((uint16_t*)(vbeModePointer))[i];
         }
 
         SBL_memcpy(dib->Signature, "visbvisbvisbvisb", 16);
+        tempBMM.VBEMIB.location = dib->VGAModePointer;
+        tempBMM.VBEMIB.size = dib->count * sizeof(VBEModeInfoBlock);
     }
     else {
         stupidHeaderIPutHereForEase:
@@ -385,16 +441,25 @@ uint16_t sbl_build(uint16_t location, uint16_t impArea, uint16_t impAreaSize) { 
             else if ((rest >> 8) == 2) SBL_NodeMap->data = 6767;
             else if ((rest >> 8) == 3) SBL_NodeMap->data = 0x6E6F; // just "no"
             else SBL_NodeMap->data = 0x0001;
+            tempBMM.VBEMIB.location = 0;
+            tempBMM.VBEMIB.size = 0;
+            tempBMM.DisplayInfoBlock.location = 0;
+            tempBMM.DisplayInfoBlock.size = 0;
     }
     SBL_NodeMap->next = SBL_NodeMap->data + sizeof(SBL_DisplayInfoBlock);
 
 
     // Build bootloader map info
     SBL_NodeMap = _SBL_NodeMap_fw(SBL_NodeMap);
-    SBL_NodeMap->data = 69; // i am so fucking funny
-    SBL_NodeMap->next = (uint16_t)(SBL_NodeMap + 1);
-    bootloader_header->sgalf |= 1ULL << 62; // mark bootloader info as complete
-    bootloader_header->flags |= 1ULL << 62; // mark bootloader info as incomplete
+    SBL_NodeMap->data = (uint16_t)(SBL_NodeMap + 1);
+    SBL_NodeMap->next = SBL_NodeMap->data + sizeof(SBL_BMM);
+    SBL_BMM* bmm = (SBL_BMM*)(SBL_NodeMap->data);
+    SBL_memcpy(bmm->Signature, "bmm.bmm.bmm.bmm", 16);
+    bmm->count = SBL_BOOTLOADER_MAP_COUNT;
+    MapNode = SBL_NodeMap; // save for later
+    tempBMM.BootloaderMap.location = SBL_NodeMap->data;
+    tempBMM.BootloaderMap.size = sizeof(SBL_BMM);
+    // bootloader_header->flags |= 1ULL << 62; // mark bootloader info as incomplete
 
     
     // Build bootloader identity info
@@ -408,11 +473,70 @@ uint16_t sbl_build(uint16_t location, uint16_t impArea, uint16_t impAreaSize) { 
     SBL_Identity* identity = (SBL_Identity*)(SBL_NodeMap->data);
     SBL_memcpy(identity->magic, SBL_IDENTITY_MAGIC, sizeof(identity->magic));
     SBL_memcpy(identity->name, SBL_IDENTITY_NAME, sizeof(identity->name));
-    identity->version.year = 26;
-    identity->version.week = 35;
-    identity->version.day = 2;
-    identity->contract.year = 26;
-    identity->contract.month = 9;
+    identity->version.year = VERSION_YEAR;
+    identity->version.week = VERSION_WEEK;
+    identity->version.day = VERSION_DAY;
+    identity->contract.year = CONTRACT_YEAR;
+    identity->contract.month = CONTRACT_MONTH;
+
+    tempBMM.Identity.location = SBL_NodeMap->data;
+    tempBMM.Identity.size = sizeof(SBL_Identity);
+    tempBMM.ContractArea.size = SBL_NodeMap->data + sizeof(SBL_Identity) - tempBMM.ContractArea.location;
+
+    // now build the map
+    // RM IVT + BDA
+    bmm->entries[0].Address = tempBMM.IVT_BDA.location;
+    bmm->entries[0].Size = tempBMM.IVT_BDA.size;
+    bmm->entries[0].Status = SBL_BOOTLOADER_CRITICAL;
+    // PM IVT + GDT
+    bmm->entries[1].Address = tempBMM.PM_IVT_GDT.location;
+    bmm->entries[1].Size = tempBMM.PM_IVT_GDT.size;
+    bmm->entries[1].Status = SBL_BOOTLOADER_CRITICAL;
+    // Contract area
+    bmm->entries[2].Address = tempBMM.ContractArea.location;
+    bmm->entries[2].Size = tempBMM.ContractArea.size;
+    bmm->entries[2].Status = SBL_BOOTLOADER_RESERVED;
+    // BIOS memory map
+    bmm->entries[3].Address = tempBMM.MemoryMap.location;
+    bmm->entries[3].Size = tempBMM.MemoryMap.size;
+    bmm->entries[3].Status = SBL_BOOTLOADER_INUSE;
+    // Bootloader memory map
+    bmm->entries[4].Address = tempBMM.BootloaderMap.location;
+    bmm->entries[4].Size = tempBMM.BootloaderMap.size;
+    bmm->entries[4].Status = SBL_BOOTLOADER_INUSE;
+    // Display info block
+    bmm->entries[5].Address = tempBMM.DisplayInfoBlock.location;
+    bmm->entries[5].Size = tempBMM.DisplayInfoBlock.size;
+    bmm->entries[5].Status = SBL_BOOTLOADER_INUSE;
+    // VBE mode info block
+    bmm->entries[6].Address = tempBMM.VBEMIB.location;
+    bmm->entries[6].Size = tempBMM.VBEMIB.size;
+    bmm->entries[6].Status = SBL_BOOTLOADER_INUSE;
+    // Rough area of the ACPI/SMBIOS tables
+    bmm->entries[7].Address = tempBMM.ACPI.location;
+    bmm->entries[7].Size = tempBMM.ACPI.size;
+    bmm->entries[7].Status = SBL_BOOTLOADER_INUSE;
+
+    bmm->entries[8].Address = tempBMM.SMBIOS.location;
+    bmm->entries[8].Size = tempBMM.SMBIOS.size;
+    bmm->entries[8].Status = SBL_BOOTLOADER_INUSE;
+    // Identity section
+    bmm->entries[9].Address = tempBMM.Identity.location;
+    bmm->entries[9].Size = tempBMM.Identity.size;
+    bmm->entries[9].Status = SBL_BOOTLOADER_RESERVED;
+    // SBL S1
+    bmm->entries[10].Address = tempBMM.S1.location;
+    bmm->entries[10].Size = tempBMM.S1.size;
+    bmm->entries[10].Status = SBL_BOOTLOADER_FREE;
+    // SBL S2
+    bmm->entries[11].Address = tempBMM.S2.location;
+    bmm->entries[11].Size = tempBMM.S2.size;
+    bmm->entries[11].Status = SBL_BOOTLOADER_FREE;
+    // SBL S3
+    bmm->entries[12].Address = tempBMM.S3.location;
+    bmm->entries[12].Size = tempBMM.S3.size;
+    bmm->entries[12].Status = SBL_BOOTLOADER_FREE;
+    bootloader_header->sgalf |= 1ULL << 62; // mark bootloader info as complete
     
 
     // Calculate checksum

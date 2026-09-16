@@ -136,6 +136,7 @@ boot.bin.D
 
 # other crap singled out because screw you
 pmemsave*
+pmem*
 memimg.mem
 s2.elf.dump
 

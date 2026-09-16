@@ -26,6 +26,19 @@
 #define SBL_IDENTITY_MAGIC "NEKO"
 #define SBL_IDENTITY_NAME "SBLi"
 
+#define VERSION_YEAR 26
+#define VERSION_WEEK 36
+#define VERSION_DAY 4
+
+#define CONTRACT_YEAR 26
+#define CONTRACT_MONTH 9
+
+#define SBL_BOOTLOADER_MAP_COUNT 13
+#define SBL_BOOTLOADER_FREE 1
+#define SBL_BOOTLOADER_RESERVED 2
+#define SBL_BOOTLOADER_INUSE 3
+#define SBL_BOOTLOADER_CRITICAL 4
+
 
 /// Structures
 
@@ -100,6 +113,18 @@ typedef struct __attribute__((packed)) {
     uint32_t VGAModePointer;
     uint32_t resv;
 } SBL_DisplayInfoBlock;
+
+typedef struct __attribute__((packed)) {
+    uint64_t Address;
+    uint64_t Size;
+    uint32_t Status;
+} SBL_BootloaderMemoryMapEntry;
+
+typedef struct __attribute__((packed)) {
+    char Signature[16];
+    uint32_t count;
+    SBL_BootloaderMemoryMapEntry entries[SBL_BOOTLOADER_MAP_COUNT];
+} SBL_BMM;
 
 /// Function Prototypes
 // External

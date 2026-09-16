@@ -93,6 +93,20 @@ typedef struct __attribute__((packed)) {
     uint32_t resv;
 } SBL_DisplayInfoBlock;
 
+typedef struct __attribute__((packed)) {
+    uint64_t Address;
+    uint64_t Size;
+    uint32_t Status;
+} SBL_BootloaderMemoryMapEntry;
+
+#define SBL_BOOTLOADER_MAP_COUNT 13
+
+typedef struct __attribute__((packed)) {
+    char Signature[16];
+    uint32_t count;
+    SBL_BootloaderMemoryMapEntry entries[SBL_BOOTLOADER_MAP_COUNT];
+} SBL_BMM;
+
 
 uint32_t main(int argc, char *argv[]) {
     if (argc != 2) {
@@ -417,6 +431,36 @@ uint32_t main(int argc, char *argv[]) {
             perror("Read failure");
             fclose(file);
             return 1;
+        }
+
+        SBL_BMM bmm;
+        if (fseek(file, node.data, SEEK_SET) != 0) {
+            perror("Seek failure");
+            fclose(file);
+            return -1;
+        }
+
+        if (fread(&bmm, sizeof bmm, 1, file) != 1) {
+            perror("Read failure");
+            fclose(file);
+            return 1;
+        }
+
+        printf("Bootloader memory map:\n");
+        printf("\tSignature: %.16s\n", bmm.Signature);
+        printf("\tCount: %" PRIu32 "\n", bmm.count);
+        printf("\n");
+        for (uint32_t i = 0; i < bmm.count; i++) {
+            printf("\tEntry %" PRIu32 ":\n", i + 1);
+            printf("\t\tAddress: 0x%016" PRIx64 "\n", bmm.entries[i].Address);
+            printf("\t\tSize: %" PRIu64 " bytes\n", bmm.entries[i].Size);
+                switch (bmm.entries[i].Status) {
+                    case 0x01: puts("\t\tUsed bootloader memory that is available to the OS\n"); break;
+                    case 0x02: puts("\t\tUsed bootloader memory available after setup\n"); break;
+                    case 0x03: puts("\t\tUsed bootloader memory deemed critical for OS operation\n"); break;
+                    case 0x04: puts("\t\tUsed bootloader memory deemed critical for CPU operation\n"); break;
+                    default: puts("\t\tUnknown memory, likely reserved.\n"); break;
+                }
         }
     }
 
