@@ -11,7 +11,7 @@ uint32_t min(uint32_t a, uint32_t b) {
 }
 
 typedef struct __attribute__((packed)) {
-    uint64_t magic;
+    char magic[8];
     uint64_t checksum;
     uint64_t flags;
     uint64_t sgalf;
@@ -133,16 +133,13 @@ uint32_t main(int argc, char *argv[]) {
         return 1;
     }
 
-    char magic[9] = {0};
-    for (int i = 7; i >= 0; i--) {
-        char byte = (data.magic >> (i * 8)) & 0xFF;
-        if (byte < 32 || byte > 126) magic[i] = '.';
-        else magic[i] = byte;
-    }
+    char magic[9];
+    memcpy(magic, data.magic, 8);
+    magic[8] = '\0';
 
-    printf("Magic: 0x%016" PRIx64 " (%s)\n", data.magic, magic);
+    printf("Magic: 0x%016" PRIx64 " (%s)\n", (*(uint64_t*)(data.magic)), magic);
     printf("Checksum: 0x%016" PRIx64, data.checksum);
-    if (data.checksum + data.magic + data.flags + data.sgalf == 0xFFFFFFFFFFFFFFFF) {
+    if (data.checksum + (*(uint64_t*)(data.magic)) + data.flags + data.sgalf == 0xFFFFFFFFFFFFFFFF) {
         printf(" (valid)\n");
     } else {
         printf(" (invalid)\n");

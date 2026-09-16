@@ -43,7 +43,7 @@
 /// Structures
 
 typedef struct __attribute__((packed)) {
-    uint64_t magic;
+    char magic[8];
     uint64_t checksum;
     uint64_t flags;
     uint64_t sgalf;

@@ -190,7 +190,7 @@ uint16_t sbl_build(uint16_t location, uint16_t impArea, uint16_t impAreaSize) { 
 
     SBL_Node* MapNode;
 
-    bootloader_header->magic = 0x4B4F4E45; // Magic number
+    SBL_memcpy(bootloader_header->magic, "NEKONEKO", 8); // magic "number"
     bootloader_header->checksum = 0;          // Checksum (to be calculated later)
     bootloader_header->flags = 0;          // Flags (to be set later)
     bootloader_header->sgalf = 0;          // Antiflags (to be set later)
@@ -380,7 +380,7 @@ uint16_t sbl_build(uint16_t location, uint16_t impArea, uint16_t impAreaSize) { 
     if (fw->SMBIOSPointer != 0) tempBMM.SMBIOS.size = fw->SMBIOSLength;
     else tempBMM.SMBIOS.size = 0;
 
-    bootloader_header->sgalf |= 1ULL << 7; // mark firmware map as done
+    bootloader_header->flags |= 1ULL << 7; // mark firmware map as done
 
     // Build display info
     // im gonna fucking cry istfg please stop with the asm torment
@@ -536,12 +536,12 @@ uint16_t sbl_build(uint16_t location, uint16_t impArea, uint16_t impAreaSize) { 
     bmm->entries[12].Address = tempBMM.S3.location;
     bmm->entries[12].Size = tempBMM.S3.size;
     bmm->entries[12].Status = SBL_BOOTLOADER_FREE;
-    bootloader_header->sgalf |= 1ULL << 62; // mark bootloader info as complete
+    bootloader_header->flags |= 1ULL << 62; // mark bootloader info as complete
     
 
     // Calculate checksum
     bootloader_header->checksum = 0xFFFFFFFFFFFFFFFF;
-    bootloader_header->checksum -= bootloader_header->magic + bootloader_header->flags + bootloader_header->sgalf;
+    bootloader_header->checksum -= (*(uint64_t*)(bootloader_header->magic)) + bootloader_header->flags + bootloader_header->sgalf;
 
     return RETVAL;
 }
