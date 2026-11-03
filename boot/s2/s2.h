@@ -108,11 +108,15 @@ typedef struct __attribute__((packed)) {
 
 typedef struct __attribute__((packed)) {
     char Signature[16];
+    uint16_t size;
     uint32_t VGAPointer;
     uint32_t count;
     uint32_t VGAModePointer;
-    uint32_t resv;
+    uint16_t fhd;
+    char resv[16];
 } SBL_DisplayInfoBlock;
+
+_Static_assert(sizeof(SBL_DisplayInfoBlock) % 16 == 0, "SBL Display Info Block structure is not a multiple of 16 bytes");
 
 typedef struct __attribute__((packed)) {
     uint64_t Address;
@@ -134,6 +138,7 @@ extern uint16_t SBL_88(uint32_t segment_offset);
 extern uint16_t SBL_LM_Entropy(void);
 extern uint16_t PopulateVBEInfo(uint32_t segment_offset);
 extern uint16_t PopulateVBEMode(uint32_t segment_offset, uint32_t mode);
+extern uint16_t PopulateEDID(uint32_t segment_offset);
 
 // Internal
 SBL_Node* _SBL_NodeMap_fw(SBL_Node* node);

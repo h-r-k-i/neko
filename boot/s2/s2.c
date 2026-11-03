@@ -25,6 +25,10 @@ uint8_t SBL_memcmp(const void* dest, const void* src, uint16_t count) {
     return 0; // equal
 }
 
+uint32_t _SBL_abs_sub(uint32_t a, uint32_t b) {
+    return (a > b) ? (a - b) : (b - a);
+}
+
 typedef struct __attribute__((packed)) {
     char Signature[8];
     uint8_t Checksum;
@@ -80,6 +84,72 @@ typedef struct __attribute__((packed)) {
     uint16_t TotalMemory;
     uint8_t resv[492];
 } VBEInfoBlock;
+
+typedef struct __attribute__((packed)) {
+    uint8_t HorizontalFrequency; // these are technically just one uint16_t but
+    uint8_t VerticalFrequency; // i can't be fucked to change it
+
+    uint8_t HorizontalActive;
+    uint8_t HorizontalBlanking;
+    uint8_t HorizontalExtensions;
+
+    uint8_t VerticalActive;
+    uint8_t VerticalBlanking;
+    uint8_t VerticalExtensions;
+
+    uint8_t HorizontalSyncOffset;
+    uint8_t HorizontalSyncPulseWidth;
+
+    uint8_t VerticalSyncOffsetPulseWidth;
+    uint8_t SyncExtensions;
+
+    uint8_t HorizontalImageSize;
+    uint8_t VerticalImageSize;
+
+    uint8_t ImageSizeExtensions;
+
+    uint8_t HorizontalBorder;
+    uint8_t VerticalBorder;
+
+    uint8_t DisplayType;
+} EDID_DTD;
+
+_Static_assert(sizeof(EDID_DTD) == 18, "EDID DTD structure is not 18 bytes");
+
+typedef struct __attribute__((packed)) {
+    uint8_t Header[8];
+    uint8_t VendorName[2];
+    uint16_t ProductCode;
+    uint32_t SerialNumber;
+    uint8_t Week;
+    uint8_t Year;
+    uint8_t Version[2];
+
+    uint8_t VideoInputBitmap;
+    uint8_t HorizontalSizeCenti;
+    uint8_t VerticalSizeCenti;
+    uint8_t DisplayGamma;
+    uint8_t FeatureSupportBitmap;
+
+    uint8_t RedGreenLSB;
+    uint8_t BlueWhiteMSB;
+    uint8_t RedXMSB;
+    uint8_t RedYMSB;
+    uint16_t GreenXYMSB;
+    uint16_t BlueXYMSB;
+    uint16_t WhiteXMSB;
+
+    uint8_t EstablishedTimingsBitmap[3];
+
+    uint8_t StandardTimingID[16];
+
+    EDID_DTD Descriptors[4];
+
+    uint8_t ExtensionFlag;
+    uint8_t Checksum;
+} VESA_EDID;
+
+_Static_assert(sizeof(VESA_EDID) == 128, "VESA EDID structure is not 128 bytes");
 
 typedef struct __attribute__((packed)) {
     uint16_t Attributes;
@@ -257,7 +327,7 @@ uint16_t sbl_build(uint16_t location, uint16_t impArea, uint16_t impAreaSize) { 
         SBL_NodeMap->next = ((uint16_t)(SBL_NodeMap) + sizeof(SBL_Node) + 2 * sizeof(uint16_t) + E820_ENTRY_SIZE * E820_MAX_ENTRIES);
     }
 
-    // Build long mode and entropy info (later other cpu features maybe)
+    // Build long mode and entropy info (later other cpu features... maybe?)
     SBL_NodeMap = _SBL_NodeMap_fw(SBL_NodeMap);
     SBL_NodeMap->data = (uint16_t)(SBL_NodeMap + 1);
     SBL_NodeMap->next = SBL_NodeMap->data + sizeof(uint64_t);
@@ -385,53 +455,100 @@ uint16_t sbl_build(uint16_t location, uint16_t impArea, uint16_t impAreaSize) { 
     // Build display info
     // im gonna fucking cry istfg please stop with the asm torment
     SBL_NodeMap = _SBL_NodeMap_fw(SBL_NodeMap);
-    VBEInfoBlock vbe = {0}; // "yeah just push 512 bytes onto the stack" - the mentally deranged
     SBL_NodeMap->data = (uint16_t)(SBL_NodeMap + 1);
     SBL_DisplayInfoBlock* dib = (SBL_DisplayInfoBlock*)(SBL_NodeMap->data);
-    uint16_t rest = PopulateVBEInfo(((uint32_t)&vbe >> 4) << 16 | ((uint32_t)&vbe & 0xF)); // awful
+    dib->fhd = 0xFFFF;
+    dib->size = sizeof(SBL_DisplayInfoBlock);
+    VESA_EDID* edid = (VESA_EDID*)(0x8000);
+    struct {
+        uint16_t width;
+        uint16_t height;
+    } resolutions[4] = {0}; // I FUCKING LOVE STACK INITIALIZATION
+    uint16_t rest = PopulateEDID(((uint32_t)edid >> 4) << 16 | ((uint32_t)edid & 0xF));
+    if (rest != 0) goto fillWithFallbacks;
+    // validate the EDID
+    if (edid->Header[0] != 0x00) goto fillWithFallbacks;
+    if (edid->Header[7] != 0x00) goto fillWithFallbacks;
+    for (uint8_t i = 1; i < 7; i++) if (edid->Header[i] != 0xFF) goto fillWithFallbacks;
+    uint8_t sum = 0;
+    for (uint8_t i = 0; i < sizeof(VESA_EDID); i++) sum += ((uint8_t*)(edid))[i];
+    if (sum != 0) goto fillWithFallbacks;
+    // we wanna store the resolutions in the DTDs but sometimes they don't have resolutions so we have to check for that
+    // thanks vesa
+    { // mmm scoping (blame CSC 3320 and Georgia State University for this bullshit)
+        int j = 0;
+        for (int i = 0; i < 4; i++) {
+            if (edid->Descriptors[i].HorizontalFrequency == 0 && edid->Descriptors[i].VerticalFrequency == 0) continue; // copilot stop fucking up my code
+            resolutions[j].width = (edid->Descriptors[i].HorizontalActive | ((uint16_t)(edid->Descriptors[i].HorizontalExtensions >> 4) << 8));
+            resolutions[j].height = (edid->Descriptors[i].VerticalActive | ((uint16_t)(edid->Descriptors[i].VerticalExtensions >> 4) << 8));
+            j++;
+        }
+        if (j == 0) {
+            fillWithFallbacks:
+            // no resolutions found, fill with fallbacks
+            resolutions[0].width = 640;
+            resolutions[0].height = 480;
+            resolutions[1].width = 800;
+            resolutions[1].height = 600;
+            resolutions[2].width = 0;
+            resolutions[2].height = 0;
+            resolutions[3].width = 0;
+            resolutions[3].height = 0;
+        }
+        else {
+            for (; j < 4; j++) {
+                resolutions[j].width = 0;
+                resolutions[j].height = 0;
+            }
+        }
+    }
+    VBEInfoBlock* vbe = (VBEInfoBlock*)(0x8000); // change val
+    rest = PopulateVBEInfo(((uint32_t)vbe >> 4) << 16 | ((uint32_t)vbe & 0xF)); // awful
+    int nodeSize = sizeof(SBL_DisplayInfoBlock);
     if (((rest & 0xFF00) == 0) && (rest & 0xFF) == 0x4F) {
         bootloader_header->flags |= 1ULL << 17;
-        dib->VGAPointer = (uint32_t)&vbe;
-        VBEModeInfoBlock vbeMib = {0}; // once again stack initialization like i can afford that :3
-        uint32_t vbeModePointer = (vbe.VideoModePtr[1] << 4) + vbe.VideoModePtr[0];
-        uint32_t vbeDataPointer = 0x100000;
+        dib->VGAPointer = (uint32_t)vbe;
+        VBEModeInfoBlock* vbeMib = (VBEModeInfoBlock*)(0x9000);
+        uint32_t vbeModePointer = (vbe->VideoModePtr[1] << 4) + vbe->VideoModePtr[0];
+        uint32_t vbeDataPointer = (SBL_NodeMap->data + nodeSize);
 
         tempBMM.DisplayInfoBlock.location = dib->VGAPointer;
         tempBMM.DisplayInfoBlock.size = sizeof(VBEInfoBlock);
 
-        // i see we're gonna have to parse our data
-        if ((bootloader_header->flags & 0x1) == 0 && (bootloader_header->sgalf & 0x1) == 1) if (((SBL_88_Map*)(((SBL_Node*)(bootloader_header->first))->data))->memory_above_1M < 2048) return -3;
-        else if ((bootloader_header->flags & 0x1) == 1 && (bootloader_header->sgalf & 0x1) == 0) {
-            E820h_Map_Entry* e820map = (E820h_Map_Entry*)(((SBL_E820_Header*)(((SBL_Node*)(bootloader_header->first))->data))->first);
-            uint16_t e7122222222 = 0; // im running out of varnames
-            for (uint16_t i = 0; i < ((SBL_E820_Header*)(((SBL_Node*)(bootloader_header->first))->data))->entry_count; i++) {
-                if (e820map[i].Address >= 0x100000 && e820map[i].Size >= 0x100000 && e820map[i].Type == 0x01) {
-                    e7122222222 = i;
-                    vbeDataPointer = e820map[i].Address;
-                    break;
-                }
-            }
-        }
-        else if ((bootloader_header->flags & 0x1) == 1 && (bootloader_header->sgalf & 0x1) == 1) if (((SBL_E801_Map*)(((SBL_Node*)(bootloader_header->first))->data))->configured_memory_1k < 2048 && ((SBL_E801_Map*)(((SBL_Node*)(bootloader_header->first))->data))->extended_memory_1k < 2048) return -3;
-        else return -3; // this state should be impossible
-
         dib->VGAModePointer = vbeDataPointer;
-        dib->count = 0;
+        dib->count = 1;
+        uint32_t parity = UINT32_MAX;
+        uint32_t size = 0;
         
         for (uint32_t i = 0; ((uint16_t*)(vbeModePointer))[i] != 0xFFFF; i++) {
-            rest = PopulateVBEMode(((uint32_t)&vbeMib >> 4) << 16 | ((uint32_t)&vbeMib & 0xF),
+            rest = PopulateVBEMode(((uint32_t)vbeMib >> 4) << 16 | ((uint32_t)vbeMib & 0xF),
                             ((uint16_t*)(vbeModePointer))[i]);
-            if ((rest & 0xFF00) != 0) continue;
-            SBL_memcpy((void*)vbeDataPointer, &vbeMib, 256);
-            vbeDataPointer += 256;
-            dib->count++;
-            if (vbeDataPointer >= 0x200000) break;
-            *((uint16_t*)(0x7000 + 2*i)) = ((uint16_t*)(vbeModePointer))[i];
+            if (rest != 0x004F) continue;
+            if (!(vbeMib->Attributes & (1 << 0))) continue; // mode not supported
+            if (!(vbeMib->Attributes & (1 << 4))) continue; // mode not supported
+            if (!(vbeMib->Attributes & (1 << 7))) continue; // mode not supported
+            if (vbeMib->bpp != 32) continue; // mode not supported
+            uint32_t pair = 0;
+            uint32_t siz = 0;
+            for (int j = 0; j < 4; j++) {
+                if (resolutions[j].width == 0 || resolutions[j].height == 0) continue;
+                pair = _SBL_abs_sub(vbeMib->Width, resolutions[j].width) + _SBL_abs_sub(vbeMib->Height, resolutions[j].height);
+                siz = vbeMib->Width * vbeMib->Height;
+                if (pair < parity || (pair == parity && siz > size)) {
+                    parity = pair;
+                    size = siz;
+                    SBL_memcpy((void*)vbeDataPointer, vbeMib, sizeof(VBEModeInfoBlock));
+                    dib->fhd = ((uint16_t*)(vbeModePointer))[i];
+                }
+                
+            }
+            // SBL_memcpy((void*)vbeDataPointer, &vbeMib, 256);
         }
 
         SBL_memcpy(dib->Signature, "visbvisbvisbvisb", 16);
-        tempBMM.VBEMIB.location = dib->VGAModePointer;
+        tempBMM.VBEMIB.location = (uint32_t)vbeMib;
         tempBMM.VBEMIB.size = dib->count * sizeof(VBEModeInfoBlock);
+        nodeSize += sizeof(VBEInfoBlock) + dib->count * sizeof(VBEModeInfoBlock);
     }
     else {
         stupidHeaderIPutHereForEase:
@@ -446,7 +563,7 @@ uint16_t sbl_build(uint16_t location, uint16_t impArea, uint16_t impAreaSize) { 
             tempBMM.DisplayInfoBlock.location = 0;
             tempBMM.DisplayInfoBlock.size = 0;
     }
-    SBL_NodeMap->next = SBL_NodeMap->data + sizeof(SBL_DisplayInfoBlock);
+    SBL_NodeMap->next = SBL_NodeMap->data + nodeSize;
 
 
     // Build bootloader map info

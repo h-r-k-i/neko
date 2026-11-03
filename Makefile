@@ -29,8 +29,8 @@ BOOT2_HLP = ./$(BUILD_BIN)/s2func.o
 BOOT2_LD = ./boot/s2/s2.ld
 
 BOOT3_ASM = ./boot/s3/s3.s
-BOOT3_C	  = ./boot/s3/s3.c
-BOOT3_D   = $(wildcard ./boot/s3/drivers/*.c)
+BOOT3_C	  = ./boot/s3/s3.cpp
+BOOT3_D   = $(wildcard ./boot/s3/drivers/*.cpp)
 KERNEL_C  = ./bin/neko.c
 KERNEL_CPP =
 KERNEL_ASM =
@@ -44,8 +44,8 @@ KERNEL_BIN = kernel.bin
 OS_IMG     = os.img
 
 BOOT3_OBJ  = ./$(BUILD_BIN)/s3.o
-BOOT3_COBJ = ./$(BUILD_BIN)/s3.c.o
-BOOT3_DRIV = $(patsubst ./boot/s3/drivers/%.c,./$(BUILD_BIN)/%.c.o, $(BOOT3_D))
+BOOT3_COBJ = ./$(BUILD_BIN)/s3.cpp.o
+BOOT3_DRIV = $(patsubst ./boot/s3/drivers/%.cpp,./$(BUILD_BIN)/%.cpp.o, $(BOOT3_D))
 BOOT3_ELF  = ./$(BUILD_BIN)/s3.elf
 
 BOOT3_LD = ./boot/s3/s3.ld
@@ -79,7 +79,7 @@ $(BOOT2_OBJ): $(BOOT2_ASM)
 	nasm -f elf32 $< -o $@
 
 $(BOOT2_COBJ): $(BOOT2_C)
-	$(CC) -ffreestanding -m16 -I/home/renee/opt/cross/bin/lib/gcc/x86_64-elf/15.2.0/include $(S2_DEBUG_FLAG) -c $< -o $@
+	$(CC) -ffreestanding -m16 -mgeneral-regs-only -I/home/renee/opt/cross/bin/lib/gcc/x86_64-elf/15.2.0/include $(S2_DEBUG_FLAG) -c $< -o $@
 
 $(BOOT2_HLP): $(BOOT2_HELPASM)
 	nasm -f elf32 $< -o $@
@@ -102,11 +102,12 @@ $(IK_OBJ): $(INITKERNEL)
 $(KERNEL_OBJ): $(KERNEL)
 	$(CC) -ffreestanding -m32 -I./boot/s3/include -I/home/renee/opt/cross/bin/lib/gcc/x86_64-elf/15.2.0/include -c $< -o $@
 
-./$(BUILD_BIN)/s3.c.o: $(BOOT3_C)
-	$(CC) -ffreestanding -m32 -I./boot/s3/include -DBUILD_DEBUG -I/home/renee/opt/cross/bin/lib/gcc/x86_64-elf/15.2.0/include -c $< -o $@
+./$(BUILD_BIN)/s3.cpp.o: $(BOOT3_C)
+	$(CXX) -ffreestanding -m32 -I./boot/s3/include -DBUILD_DEBUG -I/home/renee/opt/cross/bin/lib/gcc/x86_64-elf/15.2.0/include -c $< -o $@
 
-./$(BUILD_BIN)/%.c.o: ./boot/s3/drivers/%.c
-	$(CC) -ffreestanding -m32 -I./boot/s3/include -I/home/renee/opt/cross/bin/lib/gcc/x86_64-elf/15.2.0/include -c $< -o $@
+
+./$(BUILD_BIN)/%.cpp.o: ./boot/s3/drivers/%.cpp
+	$(CXX) -ffreestanding -m32 -I./boot/s3/include -I/home/renee/opt/cross/bin/lib/gcc/x86_64-elf/15.2.0/include -c $< -o $@
 
 $(BOOT3_ELF): $(BOOT3_OBJ) $(BOOT3_COBJ) $(BOOT3_DRIV) $(BOOT3_LD) $(BOOT3_LONGO) $(IK_OBJ) $(KERNEL_OBJ)
 	$(LD) -m elf_i386 -T $(BOOT3_LD) -o $@ $(BOOT3_OBJ) $(BOOT3_COBJ) $(BOOT3_DRIV) $(BOOT3_LONGO) $(IK_OBJ) $(KERNEL_OBJ)
@@ -120,8 +121,8 @@ $(BOOT_BIN): $(BOOT1_BIN) $(BOOT2_BIN) $(BOOT3_BIN)
 kernel.o: $(KERNEL_C)
 	$(CC) $(CFLAGS) -c $(KERNEL_C) -o kernel.o
 
-consoleio.o: ./boot/s3/drivers/consoleio.c
-	$(CC) $(CFLAGS) -c ./boot/s3/drivers/consoleio.c -o consoleio.o
+consoleio.o: ./boot/s3/drivers/consoleio.cpp
+	$(CC) $(CFLAGS) -c ./boot/s3/drivers/consoleio.cpp -o consoleio.o
 
 $(KERNEL_BIN): kernel.o consoleio.o
 	$(LD) $(LDFLAGS) -Ttext 0x8000 kernel.o consoleio.o -o $(KERNEL_BIN)

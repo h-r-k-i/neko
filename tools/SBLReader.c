@@ -87,10 +87,14 @@ typedef struct __attribute__((packed)) {
 
 typedef struct __attribute__((packed)) {
     char Signature[16];
+    uint16_t size;
     uint32_t VGAPointer;
     uint32_t count;
     uint32_t VGAModePointer;
-    uint32_t resv;
+    uint16_t largest;
+    uint16_t fhd;
+    uint16_t flags;
+    char resv[12];
 } SBL_DisplayInfoBlock;
 
 typedef struct __attribute__((packed)) {
@@ -409,9 +413,11 @@ uint32_t main(int argc, char *argv[]) {
 
         printf("Display info:\n");
         printf("\tSignature: %.16s\n", dib.Signature);
+        printf("\tStructure size: %" PRIu16 " bytes\n", dib.size);
         printf("\tVGA Data Pointer: 0x%08" PRIx32 "\n", dib.VGAPointer);
-        printf("\tVGA Mode Array Pointer: 0x%08" PRIx32 "\n", dib.VGAModePointer);
         printf("\tCount: %" PRIu32 "\n", dib.count);
+        printf("\tVGA Mode Array Pointer: 0x%08" PRIx32 "\n", dib.VGAModePointer);
+        printf("\tClosest matching mode to a full monitor mode: 0x%04" PRIx16 "\n", dib.fhd);
     }
 
     putchar('\n');

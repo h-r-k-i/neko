@@ -7,7 +7,7 @@ extern s3_main
  NAME:          NekoDOS Bootloader, Stage 3.1
  DESCRIPTION:   Exists as a temporary program to
                 verify transfer into Protected Mode
-                and transfer control to s3.c.
+                and transfer control to s3.cpp.
                 A stub, basically.
  AUTHOR:        Haruki Tokumei, Haruki Media Group
  DATE:          29 January 2026

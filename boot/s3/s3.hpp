@@ -1,6 +1,6 @@
 /*******************************************************************************************
  * 
- * FILENAME:    ./boot/s3/s3.h
+ * FILENAME:    ./boot/s3/s3.hpp
  * NAME:        SBL, Stage 3 || Relevant Header File
  * DESCRIPTION: did not think this was needed but apparently it is lol
  *              dw not much'll be done here.
@@ -18,8 +18,8 @@
 // #define MULTIBOOT2  0x36D76289
 #define SBL         0x4F4B454E
 
-#include "consoleio.h"
-#include "longmode.h"
+#include "consoleio.hpp"
+#include "longmode.hpp"
 
 // SeaBIOS Characters; these may not work on other BIOSes but whatever
 #define NULL         0x00
@@ -277,23 +277,29 @@
 #define EPSILON   0xEE
 #define INTERSECT 0xEF // calc ii and phys ii and now discrete math and statistics i cant fucking escape
 
-#define TRIBAR 0xF0
-#define PLUS_MINUS 0xF1
-#define GREATER_EQUAL 0xF2
-#define LESS_EQUAL 0xF3
-#define TOP_INTEGRAL 0xF4 // oh hey there calc ii :face_with_bags_under_eyes:
+#define TRIBAR          0xF0
+#define PLUS_MINUS      0xF1
+#define GREATER_EQUAL   0xF2
+#define LESS_EQUAL      0xF3
+#define TOP_INTEGRAL    0xF4 // oh hey there calc ii :face_with_bags_under_eyes:
 #define BOTTOM_INTEGRAL 0xF5
-#define DIVIDE 0xF6
-#define APPROXIMATE 0xF7
-#define DEGREE 0xF8
-#define LARGE_DOT 0xF9 // looks VERY similar to small dot
-#define SMALL_DOT 0xFA // looks VERY similar to large dot
-#define ROOT 0xFB
-#define SUPER_N 0xFC
-#define SUPER_2 0xFD
-#define SQUARE 0xFE
-#define NBSP 0xFF
+#define DIVIDE          0xF6
+#define APPROXIMATE     0xF7
+#define DEGREE          0xF8
+#define LARGE_DOT       0xF9 // looks VERY similar to small dot
+#define SMALL_DOT       0xFA // looks VERY similar to large dot
+#define ROOT            0xFB
+#define SUPER_N         0xFC
+#define SUPER_2         0xFD
+#define SQUARE          0xFE
+#define NBSP            0xFF
 
+
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+void s3_main(uint32_t, uint32_t, uint32_t);
 extern void hang();
 
 void SBL_warn(uint16_t code, uint16_t severity) {
@@ -303,5 +309,9 @@ void SBL_panic(uint16_t code, uint16_t severity) {
     // draw screen
     // print the error (including code + severity)
 }
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif

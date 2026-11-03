@@ -12,47 +12,6 @@
  LICENSE:       MIT License (./LICENSE)
 %endif
 
-jmp short bgn
-nop
-
-%if 0
- FAT32 BIOS Parameter Block (BPB)
-%endif
-
-OEM_IDENTIFIER      db "HMNKD000"
-BYTES_PER_SECTOR    dw 512
-SECTORS_PER_CLUSTER db 1
-RESERVED_SECTORS    dw 1
-FILE_ALLOC_TABLES   db 2
-ROOT_DIR_ENTRIES    dw 0
-SECTOR_COUNT_16     dw 0
-MEDIA_DESCRIPTOR    db 0xF8
-SECTOR_COUNT_FAT    dw 0
-
-SECTORS_PER_TRACK   dw 0
-HEAD_COUNT          dw 1
-HIDDEN_SECTORS      dd 0
-SECTOR_COUNT_32     dd 131072
-
-%if 0
- FAT32 Extended Boot Record (EBR)
-%endif
-
-SECTORS_PER_FAT     dd 32
-FAT_FLAGS           dw 0
-FAT_VERSION         dw 799
-ROOT_DIR_CLUSTER    dd 2
-FSINFO_SECTOR       dw 1
-RESERVED_SECTOR     times 12 db 0
-DRIVE_NUMBER        db 0x80
-WINDOWS_NT_FLAGS    db 0
-BOOT_SIGNATURE      db 0x29
-VOLUME_ID           dd "NEKO"
-VOLUME_LABEL        db "NekoDOS SRC"
-FILESYSTEM_TYPE     db "FAT32   "
-
-
-
 bgn:
     cli ; disable interrupts
     jmp 0x0000:start  ; canonicalize CS:EIP and jump to start

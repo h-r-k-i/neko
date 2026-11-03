@@ -1,6 +1,6 @@
 /*******************************************************************************************
  * 
- * FILENAME:    ./boot/s3/drivers/consoleio.c
+ * FILENAME:    ./boot/s3/drivers/consoleio.cpp
  * NAME:        SBL, Stage 3 || Console-like Functions
  * DESCRIPTION: shitty, ass, abhorrent implementation of what is basically printf and itoa
  *              
@@ -10,7 +10,7 @@
  * LICENSE:     MIT License (./LICENSE)
  *******************************************************************************************/
 
-#include "consoleio.h"
+#include "consoleio.hpp"
 
 int x = 0;
 int y = 0;

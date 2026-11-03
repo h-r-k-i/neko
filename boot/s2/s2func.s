@@ -19,7 +19,7 @@
 %define arg_offset [bp + 0x06]
 %define continuation_pointer [bp + 0x0A]
 
-global SBL_E820, SBL_E801, SBL_88, SBL_LM_Entropy, PopulateVBEInfo, PopulateVBEMode
+global SBL_E820, SBL_E801, SBL_88, SBL_LM_Entropy, PopulateVBEInfo, PopulateVBEMode, PopulateEDID
 
 EID equ 1 << 21
 CPUID_EXT equ 0x80000000
@@ -325,6 +325,75 @@ PopulateVBEMode:
     int 0x10
 
     .PopulateVBEMode_END:
+        pop bx
+        pop di
+        pop es
+        pop bp
+        retf
+
+PopulateEDID:
+    ; mov ax, 0xFFFF
+    ; retf
+    ; variables:
+    ; [bp + 0x00]: original base pointer (NOT A VARIABLE DO NOT FUCKING USE)
+    ; [bp + 0x02]: return address (see warning above)
+    ; [bp + 0x06]: offset (lower half of uint32_t segment:offset pair)
+    ; [bp + 0x08]: segment (upper half of uint32_t segment:offset pair)
+    push bp
+    mov bp, sp
+    push es
+    push di
+    push bx
+
+    ; Sometimes the VESA report clobbers the base pointer so we need to save our variables
+    push word [bp + 0x08] ; push the segment onto the stack
+    push word [bp + 0x06] ; push the offset onto the stack
+    
+    ; VESA DDC report wants ES:DI to be a null pointer
+    xor di, di
+    mov es, di
+
+    xor bx, bx ; Report DDC capabilities subfunction. The entire register is cleared to be safe.
+    xor cx, cx ; Controller unit number. The entire register is cleared because the function uses the entire register.
+
+    mov ax, 0x4F15
+    int 0x10 ; run DDC install check
+
+    cmp al, 0x4F ; check for success
+    jne .PopulateEDID_ERRORPUSH
+
+
+    ; zero out the buffer to be safe
+    pop di
+    pop es
+    push es
+    push di
+    cld
+    xor ax, ax
+    mov cx, 128 ; EDID is 128 bytes
+    rep stosb ; zero out the buffer
+
+    pop di
+    pop es ; this is done because rep stosb clobbers es:di
+    mov ax, 0x4F15 ; VESA DDC report function
+    mov bx, 0x0001 ; Read EDID subfunction
+    xor cx, cx ; see above for why this is cleared
+    xor dx, dx ; VESA is magical (said with the vitriol of a thousand bootloader developers) 
+    int 0x10 ; run EDID report
+
+    ; check if the EDID report was successful
+    cmp ax, 0x004F
+    jne .PopulateEDID_ERROR
+    xor ax, ax ; return success code 0
+    jmp .PopulateEDID_END ; no we're not validating the EDID data here that's the caller's job
+
+    .PopulateEDID_ERRORPUSH:
+        add sp, 4 ; realign stack
+    .PopulateEDID_ERROR:
+        mov ax, 0xFFFF
+        jmp .PopulateEDID_END
+
+    .PopulateEDID_END:
         pop bx
         pop di
         pop es

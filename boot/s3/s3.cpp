@@ -1,6 +1,6 @@
 /*******************************************************************************************
  * 
- * FILENAME:    ./boot/s3/s3.c
+ * FILENAME:    ./boot/s3/s3.cpp
  * NAME:        SBL, Stage 3
  * DESCRIPTION: help
  *              
@@ -10,18 +10,7 @@
  * LICENSE:     MIT License (./LICENSE)
  *******************************************************************************************/
 
-// QUICKTASK LIST:
-// Get Multiboot info structure
-// Enter Long Mode (god help me)
-// Load the kernel built at ./bin/neko.c
-// Jump to the kernel loader
-// Cry because you sent practically garbage data to your kernel
-//      and it triple-faulted
-// Cry for good measure
-// Delete a few more entries here because you decide you aren't
-//      gonna waste your time wrangling them
-
-#include "s3.h"
+#include "s3.hpp"
 
 
 #ifdef BUILD_DEBUG
@@ -30,15 +19,15 @@
 
 void s3_main(uint32_t eax, uint32_t ebx, uint32_t edx) {
     uint16_t * video = (uint16_t *)0xB8000;
-    char * str1 = "SBL: Loading Neko...               \0";
+    // char * str1 = "SBL: Loading Neko...               \0";
     uint16_t index = 0;
 
-    while (str1[index] != '\0') {
-        video[index] =  (0x07 << 8) | str1[++index];
-    }
+    // while (str1[index] != '\0') {
+    //     video[index] =  (0x07 << 8) | str1[++index];
+    // }
 
     if (eax == SBL) {
-        printk("Checking for Long Mode support...\n");
+        // printk("Checking for Long Mode support...\n");
 
         int8_t longmodeSupported = 0;
         if (checkCPUID() != 1) {
@@ -54,9 +43,9 @@ void s3_main(uint32_t eax, uint32_t ebx, uint32_t edx) {
             hang();
         }
 
-        printk("Long Mode supported. Disabling paging...\n");
+        // printk("Long Mode supported. Disabling paging...\n");
         disablePaging();
-        printk("Paging disabled. Rebuilding GDT...\n");
+        // printk("Paging disabled. Rebuilding GDT...\n");
         GDT_INIT_64();
         struct __attribute__((packed)) {
             uint16_t size;
@@ -66,9 +55,9 @@ void s3_main(uint32_t eax, uint32_t ebx, uint32_t edx) {
             (uint32_t)(GDT_64)
         };
         __asm__ volatile ("lgdt %0" : : "m"(GDTR));
-        printk("GDT rebuilt. Building page tables...\n");
+        // printk("GDT rebuilt. Building page tables...\n");
         PM_INIT();
-        printk("Page tables built. Hoping for the best...\n");
+        // printk("Page tables built. Hoping for the best...\n");
 
         // printk("What ya gonna do when they come for you? A gang of hatin' pigs\n");
         // printk("What have they ever really done for you? Ain't never done shit\n");
@@ -106,30 +95,56 @@ void s3_main(uint32_t eax, uint32_t ebx, uint32_t edx) {
         // printk("Now tell me, que carajo quieres? And it better be\n");
         // printk("good or I'm blocking you for 3 business days. (fire emoji)\n");
 
-        printk("no                           \n");
+        // printk("no                           \n");
 
         #ifndef DEBUG
             enableLongMode(page_map_level_4, eax, ebx, edx); // idk what edx is doing here im afraid to change it
         #endif // DEBUG
 
-        enableLongMode(page_map_level_4, eax, ebx, edx);
+        // enableLongMode(page_map_level_4, eax, ebx, edx);
+        video[0] = (0x0F << 8) | VERT_RIGHT;
+        video[1] = (0x0F << 8) | RIGHT_ARROW;
+        video[2] = (0x0F << 8) | SPACE;
+        video[3] = (0x0F << 8) | SEVEN;
+
+        video[0 + 80] = (0x0F << 8) | VERT_RIGHT;
+        video[1 + 80] = (0x0F << 8) | TRIANGLE_RIGHT;
+        video[2 + 80] = (0x0F << 8) | SPACE;
+        video[3 + 80] = (0x0F << 8) | SEVEN;
+
+        video[0 + 80 * 2] = (0x0F << 8) | VERT_RIGHT;
+        video[1 + 80 * 2] = (0x0F << 8) | GREATER_THAN;
+        video[2 + 80 * 2] = (0x0F << 8) | SPACE;
+        video[3 + 80 * 2] = (0x0F << 8) | SEVEN;
+
+        video[0 + 80 * 3] = (0x0F << 8) | VERT_RIGHT;
+        video[1 + 80 * 3] = (0x0F << 8) | SPACE;
+        video[2 + 80 * 3] = (0x0F << 8) | LEFT_BRACKET;
+        video[3 + 80 * 3] = (0x0F << 8) | SEVEN;
+        video[4 + 80 * 3] = (0x0F << 8) | RIGHT_BRACKET;
+
+        // printk(VERT_RIGHT);
+        // printk(RIGHT_ARROW);
+        // printk(VERT_RIGHT);
+        // printk(VERT_RIGHT);
+        // printk("\n");
 
         hang(); // if we return from enableLongMode() then something went wrong and we should hang ourselves
     }
     else {
-        str1 = "what????????????????";
-        index = 0;
-        while (str1[index] != '\0') {
-            video[index] = (0x0F << 8) | str1[index];
-            index++;
-        }
+        // str1 = "what????????????????";
+        // index = 0;
+        // while (str1[index] != '\0') {
+        //     video[index] = (0x0F << 8) | str1[index];
+        //     index++;
+        // }
         hang();
     }
 }
 
 void hang() {
-    #ifdef DEBUG
-        printk("SBL: hang called.\n");
-    #endif // DEBUG
+    // #ifdef DEBUG
+    //     printk("SBL: hang called.\n");
+    // #endif // DEBUG
     while (1) ;
 }

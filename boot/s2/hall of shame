@@ -1,0 +1,67 @@
+kill whoever wrote this:
+
+// Build display info
+// im gonna fucking cry istfg please stop with the asm torment
+SBL_NodeMap = _SBL_NodeMap_fw(SBL_NodeMap);
+VBEInfoBlock vbe = {0}; // "yeah just push 512 bytes onto the stack" - the mentally deranged
+SBL_NodeMap->data = (uint16_t)(SBL_NodeMap + 1);
+SBL_DisplayInfoBlock* dib = (SBL_DisplayInfoBlock*)(SBL_NodeMap->data);
+uint16_t rest = PopulateVBEInfo(((uint32_t)&vbe >> 4) << 16 | ((uint32_t)&vbe & 0xF)); // awful
+if (((rest & 0xFF00) == 0) && (rest & 0xFF) == 0x4F) {
+    bootloader_header->flags |= 1ULL << 17;
+    dib->VGAPointer = (uint32_t)&vbe;
+    VBEModeInfoBlock vbeMib = {0}; // once again stack initialization like i can afford that :3
+    uint32_t vbeModePointer = (vbe.VideoModePtr[1] << 4) + vbe.VideoModePtr[0];
+    uint32_t vbeDataPointer = 0x100000;
+
+    tempBMM.DisplayInfoBlock.location = dib->VGAPointer;
+    tempBMM.DisplayInfoBlock.size = sizeof(VBEInfoBlock);
+
+    // i see we're gonna have to parse our data
+    if ((bootloader_header->flags & 0x1) == 0 && (bootloader_header->sgalf & 0x1) == 1) if (((SBL_88_Map*)(((SBL_Node*)(bootloader_header->first))->data))->memory_above_1M < 2048) return -3;
+    else if ((bootloader_header->flags & 0x1) == 1 && (bootloader_header->sgalf & 0x1) == 0) {
+        E820h_Map_Entry* e820map = (E820h_Map_Entry*)(((SBL_E820_Header*)(((SBL_Node*)(bootloader_header->first))->data))->first);
+        uint16_t e7122222222 = 0; // im running out of varnames
+        for (uint16_t i = 0; i < ((SBL_E820_Header*)(((SBL_Node*)(bootloader_header->first))->data))->entry_count; i++) {
+            if (e820map[i].Address >= 0x100000 && e820map[i].Size >= 0x100000 && e820map[i].Type == 0x01) {
+                e7122222222 = i;
+                vbeDataPointer = e820map[i].Address;
+                break;
+            }
+        }
+    }
+    else if ((bootloader_header->flags & 0x1) == 1 && (bootloader_header->sgalf & 0x1) == 1) if (((SBL_E801_Map*)(((SBL_Node*)(bootloader_header->first))->data))->configured_memory_1k < 2048 && ((SBL_E801_Map*)(((SBL_Node*)(bootloader_header->first))->data))->extended_memory_1k < 2048) return -3;
+    else return -3; // this state should be impossible
+
+    dib->VGAModePointer = vbeDataPointer;
+    dib->count = 0;
+    
+    for (uint32_t i = 0; ((uint16_t*)(vbeModePointer))[i] != 0xFFFF; i++) {
+        rest = PopulateVBEMode(((uint32_t)&vbeMib >> 4) << 16 | ((uint32_t)&vbeMib & 0xF),
+                        ((uint16_t*)(vbeModePointer))[i]);
+        if ((rest & 0xFF00) != 0) continue;
+        SBL_memcpy((void*)vbeDataPointer, &vbeMib, 256);
+        vbeDataPointer += 256;
+        dib->count++;
+        if (vbeDataPointer >= 0x200000) break;
+        *((uint16_t*)(0x7000 + 2*i)) = ((uint16_t*)(vbeModePointer))[i];
+    }
+
+    SBL_memcpy(dib->Signature, "visbvisbvisbvisb", 16);
+    tempBMM.VBEMIB.location = dib->VGAModePointer;
+    tempBMM.VBEMIB.size = dib->count * sizeof(VBEModeInfoBlock);
+}
+else {
+    stupidHeaderIPutHereForEase:
+        bootloader_header->flags &= ~(1ULL << 17);
+        bootloader_header->sgalf |= 1ULL << 17;
+        if ((rest >> 8) == 1) SBL_NodeMap->data = 42069;
+        else if ((rest >> 8) == 2) SBL_NodeMap->data = 6767;
+        else if ((rest >> 8) == 3) SBL_NodeMap->data = 0x6E6F; // just "no"
+        else SBL_NodeMap->data = 0x0001;
+        tempBMM.VBEMIB.location = 0;
+        tempBMM.VBEMIB.size = 0;
+        tempBMM.DisplayInfoBlock.location = 0;
+        tempBMM.DisplayInfoBlock.size = 0;
+}
+SBL_NodeMap->next = SBL_NodeMap->data + sizeof(SBL_DisplayInfoBlock);
