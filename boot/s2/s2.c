@@ -502,14 +502,14 @@ uint16_t sbl_build(uint16_t location, uint16_t impArea, uint16_t impAreaSize) { 
             }
         }
     }
-    VBEInfoBlock* vbe = (VBEInfoBlock*)(0x8000); // change val
-    rest = PopulateVBEInfo(((uint32_t)vbe >> 4) << 16 | ((uint32_t)vbe & 0xF)); // awful
+    VBEInfoBlock vbe = {0};
+    rest = PopulateVBEInfo(((uint32_t)&vbe >> 4) << 16 | ((uint32_t)&vbe & 0xF)); // awful
     int nodeSize = sizeof(SBL_DisplayInfoBlock);
     if (((rest & 0xFF00) == 0) && (rest & 0xFF) == 0x4F) {
         bootloader_header->flags |= 1ULL << 17;
-        dib->VGAPointer = (uint32_t)vbe;
+        dib->VGAPointer = (uint32_t)&vbe;
         VBEModeInfoBlock* vbeMib = (VBEModeInfoBlock*)(0x9000);
-        uint32_t vbeModePointer = (vbe->VideoModePtr[1] << 4) + vbe->VideoModePtr[0];
+        uint32_t vbeModePointer = (vbe.VideoModePtr[1] << 4) + vbe.VideoModePtr[0];
         uint32_t vbeDataPointer = (SBL_NodeMap->data + nodeSize);
 
         tempBMM.DisplayInfoBlock.location = dib->VGAPointer;
@@ -532,7 +532,7 @@ uint16_t sbl_build(uint16_t location, uint16_t impArea, uint16_t impAreaSize) { 
             uint32_t siz = 0;
             for (int j = 0; j < 4; j++) {
                 if (resolutions[j].width == 0 || resolutions[j].height == 0) continue;
-                pair = _SBL_abs_sub(vbeMib->Width, resolutions[j].width) + _SBL_abs_sub(vbeMib->Height, resolutions[j].height);
+                pair = _SBL_abs_sub(vbeMib->Width, resolutions[j].width) + _SBL_abs_sub(vbeMib->Height, resolutions[j].height) + _SBL_abs_sub(vbeMib->bpp, 32);
                 siz = vbeMib->Width * vbeMib->Height;
                 if (pair < parity || (pair == parity && siz > size)) {
                     parity = pair;
