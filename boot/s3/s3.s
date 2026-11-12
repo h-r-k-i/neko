@@ -1,4 +1,4 @@
-bits 32
+bits 16
 global _start
 extern s3_main
 
@@ -15,59 +15,27 @@ extern s3_main
  LICENSE:       MIT License (./LICENSE)
 %endif
 
-section .multiboot
-align 8
-
-; Multiboot 1
-MB1_MAGIC equ 0x1BADB002
-MB1_FLAGS equ 0x00000003
-MB1_CHECKSUM equ -(MB1_MAGIC + MB1_FLAGS)
-
-align 4
-dd MB1_MAGIC
-dd MB1_FLAGS
-dd MB1_CHECKSUM
-
-; Multiboot 2
-MB2_MAGIC equ 0xE85250D6
-MB2_ARCHITECTURE equ 0x00000000
-MB2_HEADER_LENGTH equ (mb2_header_end - mb2_header_start)
-MB2_CHECKSUM equ -(MB2_MAGIC + MB2_ARCHITECTURE + MB2_HEADER_LENGTH)
-
-align 8
-mb2_header_start:
-    dd MB2_MAGIC
-    dd MB2_ARCHITECTURE
-    dd MB2_HEADER_LENGTH
-    dd MB2_CHECKSUM
-
-    dw 0
-    dw 0
-    dd 8
-mb2_header_end:
-
-times (0x8000 - 0x7F00) - ($ - $$) db 0
-
 section .text
 
 _start:
-    cli
+    ; cli
     cld
-    
 
+    ; jmp hang
+    
     mov [boot_eax], eax
     mov [boot_ebx], ebx
     and edx, 0x000000FF
     mov [boot_edx], edx
     
-    mov ax, 0x10
+    xor ax, ax
     mov ds, ax
     mov es, ax
     mov fs, ax
     mov gs, ax
     mov ss, ax
 
-    mov esp, 0xF000
+    mov sp, 0xF000
 
     ; mov ax, 0x0761 ; white on black 'a'
     ; mov ebx, 0xB8000
@@ -78,13 +46,29 @@ _start:
     push dword [boot_edx]
     push dword [boot_ebx]
     push dword [boot_eax]
+    push word 0
     call s3_main
 
 hang:
+    mov ah, 0x13
+    xor dx, dx
+    mov al, 0x01
+    mov bh, 0
+    mov bl, 0x07
+    mov cx, a3l
+    push ds
+    pop es
+    mov bp, a3
+    int 0x10
+    inc dh
+    mov [row], dh
     hlt
     jmp hang
 
-a3 db 'hi hi hi hi hi hi hi hi hi hi', 0x0a, 0x0d, 0x00
+a3 db 'hi hi hi hi hi hi hi hi hi hi', 0x0a, 0x0d
+a3l equ $ - a3
+
+row: db 0
 
 section .bss
 align 4

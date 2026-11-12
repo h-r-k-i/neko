@@ -86,8 +86,8 @@ typedef struct __attribute__((packed)) {
 } VBEInfoBlock;
 
 typedef struct __attribute__((packed)) {
-    uint8_t HorizontalFrequency; // these are technically just one uint16_t but
-    uint8_t VerticalFrequency; // i can't be fucked to change it
+    uint8_t HorizontalFrequency; // these are technically just one uint16_t but i can't be fucked to change it
+    uint8_t VerticalFrequency; // they aren't used anyway so who gives a fuck.
 
     uint8_t HorizontalActive;
     uint8_t HorizontalBlanking;
@@ -252,7 +252,7 @@ uint16_t sbl_build(uint16_t location, uint16_t impArea, uint16_t impAreaSize) { 
     tempBMM.ContractArea.location = location;
 
     tempBMM.S2.location = 0x1000;
-    tempBMM.S2.size = 0x3000 - 0x1000;
+    tempBMM.S2.size = 0x4000 - 0x1000;
     tempBMM.S1.location = 0x7C00;
     tempBMM.S1.size = 512;
     tempBMM.S3.location = 0x8000;
@@ -546,7 +546,7 @@ uint16_t sbl_build(uint16_t location, uint16_t impArea, uint16_t impAreaSize) { 
         }
 
         SBL_memcpy(dib->Signature, "visbvisbvisbvisb", 16);
-        tempBMM.VBEMIB.location = (uint32_t)vbeMib;
+        tempBMM.VBEMIB.location = vbeDataPointer;
         tempBMM.VBEMIB.size = dib->count * sizeof(VBEModeInfoBlock);
         nodeSize += sizeof(VBEInfoBlock) + dib->count * sizeof(VBEModeInfoBlock);
     }
@@ -673,4 +673,8 @@ void SBL_memcpy(void* dest, const void* src, uint32_t count) {
     for (uint32_t i = 0; i < count; i++) {
         d[i] = s[i];
     }
+}
+
+inline uint32_t getSegmentOffset(void* ptr) {
+    return ((uint32_t)ptr >> 4) << 16 | ((uint32_t)ptr & 0xF);
 }

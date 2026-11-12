@@ -50,8 +50,8 @@ BOOT3_ELF  = ./$(BUILD_BIN)/s3.elf
 
 BOOT3_LD = ./boot/s3/s3.ld
 
-BOOT3_LONG = ./boot/s3/drivers/longmode.s
-BOOT3_LONGO = ./$(BUILD_BIN)/longmode.o
+BOOT3_DISK = ./boot/s3/drivers/disk.s
+BOOT3_DISKO = ./$(BUILD_BIN)/disk.o
 
 INITKERNEL = ./bin/nekotest.s
 IK_OBJ = ./$(BUILD_BIN)/nekotest.o
@@ -79,7 +79,7 @@ $(BOOT2_OBJ): $(BOOT2_ASM)
 	nasm -f elf32 $< -o $@
 
 $(BOOT2_COBJ): $(BOOT2_C)
-	$(CC) -ffreestanding -m16 -mgeneral-regs-only -I/home/renee/opt/cross/bin/lib/gcc/x86_64-elf/15.2.0/include $(S2_DEBUG_FLAG) -c $< -o $@
+	$(CC) -ffreestanding -m16 -mgeneral-regs-only -O1 -I/home/renee/opt/cross/bin/lib/gcc/x86_64-elf/15.2.0/include $(S2_DEBUG_FLAG) -c $< -o $@
 
 $(BOOT2_HLP): $(BOOT2_HELPASM)
 	nasm -f elf32 $< -o $@
@@ -93,24 +93,24 @@ $(BOOT2_BIN): $(BOOT2_ELF)
 $(BOOT3_OBJ): $(BOOT3_ASM)
 	nasm -f elf32 $< -o $@
 
-$(BOOT3_LONGO): $(BOOT3_LONG)
+$(BOOT3_DISKO): $(BOOT3_DISK)
 	nasm -f elf32 $< -o $@
 
 $(IK_OBJ): $(INITKERNEL)
 	nasm -f elf32 $< -o $@
 
 $(KERNEL_OBJ): $(KERNEL)
-	$(CC) -ffreestanding -m32 -I./boot/s3/include -I/home/renee/opt/cross/bin/lib/gcc/x86_64-elf/15.2.0/include -c $< -o $@
+	$(CC) -ffreestanding -m16 -I./boot/s3/include -I/home/renee/opt/cross/bin/lib/gcc/x86_64-elf/15.2.0/include -c $< -o $@
 
 ./$(BUILD_BIN)/s3.cpp.o: $(BOOT3_C)
-	$(CXX) -ffreestanding -m32 -I./boot/s3/include -DBUILD_DEBUG -I/home/renee/opt/cross/bin/lib/gcc/x86_64-elf/15.2.0/include -c $< -o $@
+	$(CXX) -ffreestanding -m16 -I./boot/s3/include -DBUILD_DEBUG -I/home/renee/opt/cross/bin/lib/gcc/x86_64-elf/15.2.0/include -c $< -o $@
 
 
 ./$(BUILD_BIN)/%.cpp.o: ./boot/s3/drivers/%.cpp
-	$(CXX) -ffreestanding -m32 -I./boot/s3/include -I/home/renee/opt/cross/bin/lib/gcc/x86_64-elf/15.2.0/include -c $< -o $@
+	$(CXX) -ffreestanding -m16 -I./boot/s3/include -I/home/renee/opt/cross/bin/lib/gcc/x86_64-elf/15.2.0/include -c $< -o $@
 
-$(BOOT3_ELF): $(BOOT3_OBJ) $(BOOT3_COBJ) $(BOOT3_DRIV) $(BOOT3_LD) $(BOOT3_LONGO) $(IK_OBJ) $(KERNEL_OBJ)
-	$(LD) -m elf_i386 -T $(BOOT3_LD) -o $@ $(BOOT3_OBJ) $(BOOT3_COBJ) $(BOOT3_DRIV) $(BOOT3_LONGO) $(IK_OBJ) $(KERNEL_OBJ)
+$(BOOT3_ELF): $(BOOT3_OBJ) $(BOOT3_COBJ) $(BOOT3_DRIV) $(BOOT3_LD) $(BOOT3_DISKO) $(IK_OBJ) $(KERNEL_OBJ)
+	$(LD) -m elf_i386 -T $(BOOT3_LD) -o $@ $(BOOT3_OBJ) $(BOOT3_COBJ) $(BOOT3_DRIV) $(BOOT3_DISKO) $(IK_OBJ) $(KERNEL_OBJ)
 
 $(BOOT3_BIN): $(BOOT3_ELF)
 	$(OBJ) -O binary $< $@

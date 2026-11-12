@@ -48,7 +48,7 @@
 %endmacro
 
 global start
-extern c_add, sbl_build
+extern c_add, sbl_build, sbl_read
 
 
 start:
@@ -120,8 +120,6 @@ stage0_1:
     add sp, 4
     cmp ax, 177
     je hang4 ; if 177 is returned then the SBL build succeeded BUT we're in debug mode so the bootloader will halt to allow map validation
-    test ax, ax
-    jnz hang3
 
 
 ; S3: Read kernel from disk to lower memory.
@@ -238,93 +236,13 @@ stage5:
     cli
     jmp stage0_1
 
-; S6: Set up Global Descriptor Table ahead of Protected Mode
+; S6: Load and jump to Stage 3 (addl unreal mode bullshit)
 stage6:
-    ; fun fact: there's no real way of verifying that
-    ; the GDT is loaded other than loading and seeing
-    ; if we triple fault. lol. Love when that happens.
-
-    ; can't wait to test this shit on bare metal.
-    lgdt [GDT_DESC]
-
-    ; Before we enter Protected Mode let's set up VGA
-    mov ah, 0x00
-    mov al, 0x03    ; 80x25 although 80x50 may work
-    int 0x10        ; but QEMU craps out if I try
-    ; 0x09 for 132x50, 0x05 for 80x50, 0x03 for 80x25
-
-    ;; and also do a check for what our disks are
-    xor dx, dx
-    mov dl, [boot_drive] ; yeah that's good enough
-
-    ; as it turns out I also need to set up an IDT
-    setup_idt:
-        mov ecx, 256              ; 256 entries
-        lea edi, [IDT]      ; Point to start of IDT
-        
-    .loop69:
-        mov eax, shit_isr
-        mov word [edi], ax
-        mov word [edi+2], 0x08
-        mov byte [edi+4], 0
-        mov byte [edi+5], 0x8E
-        shr eax, 16
-        mov word [edi+6], ax
-        
-        add edi, 8
-        dec ecx
-        jnz .loop69
-        
-    jmp stage7
-
-; S7: Finally enter Protected Mode
-; This is based on the Intel IA-32 Architecture Software
-; Developer's Manual at cs.cmu.edu/~410/doc/intel-sys.pdf
-stage7:
-    cli
-    lgdt [GDT_DESC]
-    in al, 0x70
-    or al, 0x80
-    out 0x70, al
-    mov eax, cr0
-    or al, 1
-    mov cr0, eax
-    ; jmp hang2
-    
-    jmp 0x08:stage7b
-
-[bits 32]
-; extern _start
-stage7b:
-    ; refresh the segment registers
-    ; mov byte [0xB8000], 'X'
-    ; mov ax, 0x10
-
-    mov ax, 0x10
-    mov ds, ax
-    mov ss, ax
-    mov es, ax
-    mov fs, ax
-    mov gs, ax
-    lidt [IDTR] ; load this piece of shit IDT
-    in al, 0x80
-    and al, 0x7F
-    out 0x70, al
-    mov al, 0xFF
-    out 0xA1, al
-    out 0x21, al
-    sti
-
-; S8: Jump to Stage 3
-stage8:
-    cli
-    o32 mov esp, 0x7000 - 1 ; RM Stack Top
-    o32 mov ebx, SBL_Data   ; Pointer to SBL Data structure
     o32 mov eax, 0x4F4B454E ; NEKO (Magic Number)
-    ; jmp hang2
-    jmp dword 0x08:0x8000
-    ; jmp hang2
-    ; jmp hang2
+    o32 mov ebx, SBL_Data
+    o32 mov edx, [boot_drive]
+    o32 and edx, 0x000000FF
+    jmp 0x0000:s3_loc
 
 [bits 16]
 hang:
@@ -461,9 +379,9 @@ DAP_S3:
     dw 0x0000       ; Segment to load to
     dq 25           ; Starting LBA sector (zero-based)
 
-SBL_Data equ 0x4000
+SBL_Data equ 0x5000
 
-s3_loc equ 0x7F00
+s3_loc equ 0x8000
 s3_sectors equ 48
 
 ImpArea equ $

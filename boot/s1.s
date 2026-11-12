@@ -5,7 +5,6 @@
  FILENAME:      ./boot/s1.s
  NAME:          SBL, Stage 1
  DESCRIPTION:   Sets basic functionality and boots Stage 2
-                Also contains the boot record info for FAT32
  AUTHOR:        Haruki Tokumei, Haruki Media Group
  DATE:          22 January 2026
  COPYRIGHT:     Haruki Media Group
@@ -17,7 +16,6 @@ bgn:
     jmp 0x0000:start  ; canonicalize CS:EIP and jump to start
 
 start:
-
     ; load segment registers
 
     xor ax, ax
@@ -99,32 +97,34 @@ start:
         mov dl, [boot_drive]
         jmp 0x0000:0x1000
 
-    hang:
-        cli
-        hlt
-        jmp hang
+hang:
+    cli
+    hlt
+    jmp hang
 
-    boot_drive: db 0
-    retry_count: db 0
+boot_drive: db 0
+retry_count: db 0
 
-    align 4
-    DAP:
-        db 0x10 ; size of DAP structure
-        db 0 ; reserved
-        dw 25 ; number of sectors to read
-        dw 0x1000 ; offset to read into
-        dw 0x0000 ; segment to read into
-        dq 1 ; starting LBA sector (sector 1, which is the second sector on disk)
-    
-    gdtinfo:
-        dw gdt_end - gdt - 1
-        dd gdt
-    
-    gdt:
-        dq 0x0000000000000000   ; null descriptor
-        dq 0x00009A000000FFFF   ; flat code segment
-        dq 0x00CF92000000FFFF   ; flat data segment
-    gdt_end:
-    
-    times 510 - ($ - $$) db 0
-    dw 0xAA55
+align 4
+DAP:
+    db 0x10 ; size of DAP structure
+    db 0 ; reserved
+    dw 24 ; number of sectors to read
+    dw 0x1000 ; offset to read into
+    dw 0x0000 ; segment to read into
+    dq 1 ; starting LBA sector (sector 1, which is the second sector on disk)
+
+gdtinfo:
+    dw gdt_end - gdt - 1
+    dd gdt
+
+gdt:
+    dq 0x0000000000000000   ; null descriptor
+    dq 0x00009A000000FFFF   ; flat code segment
+    dq 0x00CF92000000FFFF   ; flat data segment
+gdt_end:
+
+validate: db "If you see this outside of 0x7C00 the disk driver worked :3"
+
+times 510 - ($ - $$) db 0
+dw 0xAA55

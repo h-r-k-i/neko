@@ -22,6 +22,9 @@ void s3_main(uint32_t eax, uint32_t ebx, uint32_t edx) {
     // char * str1 = "SBL: Loading Neko...               \0";
     uint16_t index = 0;
 
+    // video[0] = (0x0F << 8) | 'A';
+    // hang();
+
     // while (str1[index] != '\0') {
     //     video[index] =  (0x07 << 8) | str1[++index];
     // }
@@ -29,35 +32,35 @@ void s3_main(uint32_t eax, uint32_t ebx, uint32_t edx) {
     if (eax == SBL) {
         // printk("Checking for Long Mode support...\n");
 
-        int8_t longmodeSupported = 0;
-        if (checkCPUID() != 1) {
-            printk("No CPUID support detected.\n");
-            hang();
-        }
+        // int8_t longmodeSupported = 0;
+        // if (checkCPUID() != 1) {
+        //     printk("No CPUID support detected.\n");
+        //     hang();
+        // }
         
-        longmodeSupported = queryLongMode();
-        if (longmodeSupported != 0) {
-            if (longmodeSupported == 1) printk("Long Mode not supported.\n");
-            else if (longmodeSupported == -1) printk("CPU too old for Long Mode support.\n");
-            else printk("Error occurred while checking Long Mode support.\n");
-            hang();
-        }
+        // longmodeSupported = queryLongMode();
+        // if (longmodeSupported != 0) {
+        //     if (longmodeSupported == 1) printk("Long Mode not supported.\n");
+        //     else if (longmodeSupported == -1) printk("CPU too old for Long Mode support.\n");
+        //     else printk("Error occurred while checking Long Mode support.\n");
+        //     hang();
+        // }
 
-        // printk("Long Mode supported. Disabling paging...\n");
-        disablePaging();
-        // printk("Paging disabled. Rebuilding GDT...\n");
-        GDT_INIT_64();
-        struct __attribute__((packed)) {
-            uint16_t size;
-            uint32_t offset;
-        } GDTR = {
-            (3 * 8) - 1,
-            (uint32_t)(GDT_64)
-        };
-        __asm__ volatile ("lgdt %0" : : "m"(GDTR));
-        // printk("GDT rebuilt. Building page tables...\n");
-        PM_INIT();
-        // printk("Page tables built. Hoping for the best...\n");
+        // // printk("Long Mode supported. Disabling paging...\n");
+        // disablePaging();
+        // // printk("Paging disabled. Rebuilding GDT...\n");
+        // GDT_INIT_64();
+        // struct __attribute__((packed)) {
+        //     uint16_t size;
+        //     uint32_t offset;
+        // } GDTR = {
+        //     (3 * 8) - 1,
+        //     (uint32_t)(GDT_64)
+        // };
+        // __asm__ volatile ("lgdt %0" : : "m"(GDTR));
+        // // printk("GDT rebuilt. Building page tables...\n");
+        // PM_INIT();
+        // // printk("Page tables built. Hoping for the best...\n");
 
         // printk("What ya gonna do when they come for you? A gang of hatin' pigs\n");
         // printk("What have they ever really done for you? Ain't never done shit\n");
@@ -97,9 +100,9 @@ void s3_main(uint32_t eax, uint32_t ebx, uint32_t edx) {
 
         // printk("no                           \n");
 
-        #ifndef DEBUG
-            enableLongMode(page_map_level_4, eax, ebx, edx); // idk what edx is doing here im afraid to change it
-        #endif // DEBUG
+        // #ifndef DEBUG
+        //     enableLongMode(page_map_level_4, eax, ebx, edx); // idk what edx is doing here im afraid to change it
+        // #endif // DEBUG
 
         // enableLongMode(page_map_level_4, eax, ebx, edx);
         video[0] = (0x0F << 8) | VERT_RIGHT;
@@ -138,6 +141,7 @@ void s3_main(uint32_t eax, uint32_t ebx, uint32_t edx) {
         //     video[index] = (0x0F << 8) | str1[index];
         //     index++;
         // }
+        video[0] = (0x0F << 8) | 'w';
         hang();
     }
 }

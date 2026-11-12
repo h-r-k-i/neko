@@ -11,6 +11,7 @@
  *******************************************************************************************/
 
 #include <stdint.h>
+#include <stddef.h>
 
 /// Constants
 
@@ -27,17 +28,21 @@
 #define SBL_IDENTITY_NAME "SBLi"
 
 #define VERSION_YEAR 26
-#define VERSION_WEEK 36
+#define VERSION_WEEK 46
 #define VERSION_DAY 4
 
 #define CONTRACT_YEAR 26
-#define CONTRACT_MONTH 9
+#define CONTRACT_MONTH 10
 
 #define SBL_BOOTLOADER_MAP_COUNT 13
 #define SBL_BOOTLOADER_FREE 1
 #define SBL_BOOTLOADER_RESERVED 2
 #define SBL_BOOTLOADER_INUSE 3
 #define SBL_BOOTLOADER_CRITICAL 4
+
+/// quick defines
+#define FALSE 1 < 0
+#define TRUE 1 > 0
 
 
 /// Structures

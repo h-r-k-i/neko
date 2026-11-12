@@ -19,7 +19,6 @@
 #define SBL         0x4F4B454E
 
 #include "consoleio.hpp"
-#include "longmode.hpp"
 
 // SeaBIOS Characters; these may not work on other BIOSes but whatever
 #define NULL         0x00

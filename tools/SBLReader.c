@@ -2,6 +2,7 @@
 #include <stdio.h>
 #include <inttypes.h>
 #include <string.h>
+#include <stdlib.h>
 
 #define MAP_START   0x4000
 
@@ -91,10 +92,8 @@ typedef struct __attribute__((packed)) {
     uint32_t VGAPointer;
     uint32_t count;
     uint32_t VGAModePointer;
-    uint16_t largest;
     uint16_t fhd;
-    uint16_t flags;
-    char resv[12];
+    char resv[16];
 } SBL_DisplayInfoBlock;
 
 typedef struct __attribute__((packed)) {
@@ -113,8 +112,8 @@ typedef struct __attribute__((packed)) {
 
 
 uint32_t main(int argc, char *argv[]) {
-    if (argc != 2) {
-        fprintf(stderr, "Usage: %s <mem.bin>\n", argv[0]);
+    if (argc < 2 || argc > 3) {
+        fprintf(stderr, "Usage: %s <mem.bin> [location]\n", argv[0]);
         return 1;
     }
 
@@ -124,7 +123,14 @@ uint32_t main(int argc, char *argv[]) {
         return 1;
     }
 
-    if(fseek(file, MAP_START, SEEK_SET) != 0) {
+    uint32_t location = MAP_START;
+    if (argc == 3) location = strtoul(argv[2], NULL, 0);
+    if (location == 0) {
+        perror("Invalid location specified, defaulting to MAP_START (0x4000)");
+        location = MAP_START; // if the user passes 0 as the location or strtoul fails, default to MAP_START
+    }
+
+    if(fseek(file, location, SEEK_SET) != 0) {
         perror("Seek failure");
         fclose(file);
         return -1;

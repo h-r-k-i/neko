@@ -2,11 +2,9 @@ ENTRY(_start)
 
 SECTIONS
 {
-    . = 0x7F00;
+    . = 0x8000;
 
     .text : {
-        . = ALIGN(8);
-        KEEP(*(.multiboot))
         *(.text*)
     }
     .rodata : { *(.rodata*)  }
@@ -15,5 +13,8 @@ SECTIONS
     {
         *(COMMON)
         *(.bss*)
+        __s3_end = .;
     }
+
+    ASSERT(__s3_end <= ADDR(.text) + 0xC800 - 4, "Stage 3 end is beyond the allowed size")
 }

@@ -19,7 +19,7 @@
 %define arg_offset [bp + 0x06]
 %define continuation_pointer [bp + 0x0A]
 
-global SBL_E820, SBL_E801, SBL_88, SBL_LM_Entropy, PopulateVBEInfo, PopulateVBEMode, PopulateEDID
+global SBL_E820, SBL_E801, SBL_88, SBL_LM_Entropy, PopulateVBEInfo, PopulateVBEMode, PopulateEDID, GetSector, GetDriveParameters
 
 EID equ 1 << 21
 CPUID_EXT equ 0x80000000
@@ -31,7 +31,7 @@ CPUID_RAND_EXT equ 1 << 30
 
 SBL_E820:
     ; mov ax, 0xFFFF
-    ; retf
+    ; o32 ret
     ; variables:
     ; [bp + 0x00]: original base pointer (NOT A VARIABLE DO NOT FUCKING USE)
     ; [bp + 0x02]: return address (see warning above)
@@ -98,11 +98,11 @@ SBL_E820:
         pop di
         pop es
         pop bp
-        retf ; could've just done rets everywhere else this is stupid
+        o32 ret ; could've just done rets everywhere else this is stupid
 
 SBL_E801:
     ; mov ax, 0xFFFF
-    ; retf
+    ; o32 ret
     ; variables:
     ; [bp + 0x00]: original base pointer (NOT A VARIABLE DO NOT FUCKING USE)
     ; [bp + 0x02]: return address (see warning above)
@@ -148,11 +148,11 @@ SBL_E801:
         pop di
         pop es
         pop bp
-        retf
+        o32 ret
 
 SBL_88:
     ; mov ax, 0xFFFF
-    ; retf
+    ; o32 ret
     ; variables:
     ; [bp + 0x00]: original base pointer (NOT A VARIABLE DO NOT FUCKING USE)
     ; [bp + 0x02]: return address (see warning above)
@@ -189,7 +189,7 @@ SBL_88:
         pop di
         pop es
         pop bp
-        retf
+        o32 ret
 
 
 SBL_LM_Entropy:
@@ -266,11 +266,11 @@ SBL_LM_Entropy:
         pop di
         pop es
         pop bp
-        retf
+        o32 ret
 
 PopulateVBEInfo:
     ; mov ax, 0xFFFF
-    ; retf
+    ; o32 ret
     ; variables:
     ; [bp + 0x00]: original base pointer (NOT A VARIABLE DO NOT FUCKING USE)
     ; [bp + 0x02]: return address (see warning above)
@@ -296,11 +296,11 @@ PopulateVBEInfo:
         pop di
         pop es
         pop bp
-        retf
+        o32 ret
 
 PopulateVBEMode:
     ; mov ax, 0xFFFF
-    ; retf
+    ; o32 ret
     ; variables:
     ; [bp + 0x00]: original base pointer (NOT A VARIABLE DO NOT FUCKING USE)
     ; [bp + 0x02]: return address (see warning above)
@@ -329,11 +329,11 @@ PopulateVBEMode:
         pop di
         pop es
         pop bp
-        retf
+        o32 ret
 
 PopulateEDID:
     ; mov ax, 0xFFFF
-    ; retf
+    ; o32 ret
     ; variables:
     ; [bp + 0x00]: original base pointer (NOT A VARIABLE DO NOT FUCKING USE)
     ; [bp + 0x02]: return address (see warning above)
@@ -398,4 +398,71 @@ PopulateEDID:
         pop di
         pop es
         pop bp
-        retf
+        o32 ret
+
+GetDriveParameters:
+    ; variables:
+    ; [bp + 0x00]: original base pointer (NOT A VARIABLE DO NOT FUCKING USE)
+    ; [bp + 0x02]: return address (see warning above)
+    ; [bp + 0x06]: offset (lower half of uint32_t segment:offset pair)
+    ; [bp + 0x08]: segment (upper half of uint32_t segment:offset pair)
+    ; [bp + 0x0A]: drive number (uint8_t)
+
+    push bp
+    mov bp, sp
+    push es
+    push di
+    push bx
+    push ds
+    push si
+
+    mov ds, arg_segment
+    mov si, arg_offset
+    mov dl, [bp + 0x0A] ; drive number
+    mov ah, 0x48
+    int 0x13
+
+    mov al, ah
+    xor ah, ah
+
+    pop si
+    pop ds
+    pop bx
+    pop di
+    pop es
+    pop bp
+    o32 ret
+
+GetSector:
+    ; variables:
+    ; [bp + 0x00]: original base pointer (NOT A VARIABLE DO NOT FUCKING USE)
+    ; [bp + 0x02]: return address (see warning above)
+    ; [bp + 0x06]: offset (lower half of uint32_t segment:offset pair)
+    ; [bp + 0x08]: segment (upper half of uint32_t segment:offset pair)
+    ; [bp + 0x0A]: drive number (uint8_t)
+
+    push bp
+    mov bp, sp
+    push es
+    push di
+    push bx
+    push ds
+    push si
+
+    mov ds, arg_segment
+    mov si, arg_offset
+    mov dl, [bp + 0x0A] ; drive number
+    mov ah, 0x42
+    int 0x13
+
+    mov al, ah
+    xor ah, ah
+    
+    .GetSector_END:
+        pop si
+        pop ds
+        pop bx
+        pop di
+        pop es
+        pop bp
+        o32 ret ; could've just done rets everywhere else this is stupid
