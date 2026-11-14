@@ -300,6 +300,7 @@ extern "C" {
 
 void s3_main(uint32_t, uint32_t, uint32_t);
 extern void hang();
+extern uint16_t WriteToScreen(uint32_t segment_offset, uint16_t length);
 
 void SBL_warn(uint16_t code, uint16_t severity) {
     printk("SBL: Warning code %u, severity %u\n", code, severity);

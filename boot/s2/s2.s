@@ -382,7 +382,7 @@ DAP_S3:
 SBL_Data equ 0x5000
 
 s3_loc equ 0x8000
-s3_sectors equ 48
+s3_sectors equ 78
 
 ImpArea equ $
 

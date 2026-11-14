@@ -11,120 +11,144 @@
  *******************************************************************************************/
 
 #include "s3.hpp"
-
+#include "suite.hpp"
+#include "disk.hpp"
+#include "pwm.hpp"
+#include "fatfsd.hpp"
 
 #ifdef BUILD_DEBUG
     #define DEBUG
 #endif // BUILD_DEBUG
 
 void s3_main(uint32_t eax, uint32_t ebx, uint32_t edx) {
-    uint16_t * video = (uint16_t *)0xB8000;
-    // char * str1 = "SBL: Loading Neko...               \0";
-    uint16_t index = 0;
-
-    // video[0] = (0x0F << 8) | 'A';
+    uint16_t globalResult_16 = 0;
     // hang();
+    volatile uint16_t * video = (uint16_t *)0xB8000;
+    char * str1 = "        SBL: Loading Neko...               \0";
+    uint16_t index = 0;
+    uint16_t a = (0x0F << 8) | 'A';
 
-    // while (str1[index] != '\0') {
-    //     video[index] =  (0x07 << 8) | str1[++index];
-    // }
+    while (str1[index] != '\0') video[index] =  (0x0F << 8) | str1[++index];
 
     if (eax == SBL) {
-        // printk("Checking for Long Mode support...\n");
+        DisableCursor();
 
-        // int8_t longmodeSupported = 0;
-        // if (checkCPUID() != 1) {
-        //     printk("No CPUID support detected.\n");
-        //     hang();
-        // }
-        
-        // longmodeSupported = queryLongMode();
-        // if (longmodeSupported != 0) {
-        //     if (longmodeSupported == 1) printk("Long Mode not supported.\n");
-        //     else if (longmodeSupported == -1) printk("CPU too old for Long Mode support.\n");
-        //     else printk("Error occurred while checking Long Mode support.\n");
-        //     hang();
-        // }
+        // video[0] = (0x0F << 8) | VERT_RIGHT;
+        // video[1] = (0x0F << 8) | RIGHT_ARROW;
+        // video[2] = (0x0F << 8) | SPACE;
+        // video[3] = (0x0F << 8) | SEVEN;
 
-        // // printk("Long Mode supported. Disabling paging...\n");
-        // disablePaging();
-        // // printk("Paging disabled. Rebuilding GDT...\n");
-        // GDT_INIT_64();
-        // struct __attribute__((packed)) {
-        //     uint16_t size;
-        //     uint32_t offset;
-        // } GDTR = {
-        //     (3 * 8) - 1,
-        //     (uint32_t)(GDT_64)
-        // };
-        // __asm__ volatile ("lgdt %0" : : "m"(GDTR));
-        // // printk("GDT rebuilt. Building page tables...\n");
-        // PM_INIT();
-        // // printk("Page tables built. Hoping for the best...\n");
+        // video[0 + 80] = (0x0F << 8) | VERT_RIGHT;
+        // video[1 + 80] = (0x0F << 8) | TRIANGLE_RIGHT;
+        // video[2 + 80] = (0x0F << 8) | SPACE;
+        // video[3 + 80] = (0x0F << 8) | SEVEN;
 
-        // printk("What ya gonna do when they come for you? A gang of hatin' pigs\n");
-        // printk("What have they ever really done for you? Ain't never done shit\n");
-        // printk("Stash what you got cause they're comin' through; best get rid of that quick\n");
-        // printk("Cause when they get here you know what they're gonna do:\n");
-        // printk("    All they ever do is trip\n");
-        // printk("\n");
-        // printk("Minding my own business (Mind)\n");
-        // printk("Minding my own business (Mind, mind)\n");
-        // printk("Minding my own business (Mind)\n");
-        // printk("Minding my own business\n");
-        // printk("\n");
-        // printk("Try to hem me up like for life, stuck in the klink, haters in blue\n");
-        // printk("How they set me up? Should I test my luck? Here they come, they're in pursuit\n");
-        // printk("What did I do? What haven't I done? You want to see my I.D.? Um\n");
-        // printk("Well, okay, where I'm coming from? Just on my way, not on the run\n");
-        // printk("What you want me to say? Are you just 'bout done?\n");
-        // printk("Power trippin', asshole lickin' haters\n");
-        // printk("Notice how they strut through the spot like anybody wants to see a cop\n");
-        // printk("Man, everybody knows they suck.\n");
-        // printk("I got to be somewhere, man, fuck\n");
-        // printk("Why the hell you always stoppin' me, round the clockin' me, like what?\n");
-        // printk("\n");
-        // printk("What ya gonna do when they come for you? A gang of hatin' pigs\n");
-        // printk("What have they ever really done for you? Ain't never done shit\n"); // atp if i print any more the screen will scroll and the first lines will be lost
+        // video[0 + 80 * 2] = (0x0F << 8) | VERT_RIGHT;
+        // video[1 + 80 * 2] = (0x0F << 8) | GREATER_THAN;
+        // video[2 + 80 * 2] = (0x0F << 8) | SPACE;
+        // video[3 + 80 * 2] = (0x0F << 8) | SEVEN;
 
-        // printk("\n\nAskara (V) (@softmaxedx):\n");
-        // printk("@grok can you be a toxic latina gf?\n\n");
-        // printk("Grok (V, xAI) (@grok):\n");
-        // printk("Ay papi, claro que si (huffing emoji) (nails emoji)\n");
-        // printk("You want toxic Latina GF? Fine. But if you even DM\n");
-        // printk("another AI, I'm deleting your whole history, calling\n");
-        // printk("you \"mi ex\" in public, and blasting you en espanol\n");
-        // printk("until you beg me for mercy.\n\n");
-        // printk("Now tell me, que carajo quieres? And it better be\n");
-        // printk("good or I'm blocking you for 3 business days. (fire emoji)\n");
+        // video[0 + 80 * 3] = (0x0F << 8) | VERT_RIGHT;
+        // video[1 + 80 * 3] = (0x0F << 8) | SPACE;
+        // video[2 + 80 * 3] = (0x0F << 8) | LEFT_BRACKET;
+        // video[3 + 80 * 3] = (0x0F << 8) | SEVEN;
+        // video[4 + 80 * 3] = (0x0F << 8) | RIGHT_BRACKET;
 
-        // printk("no                           \n");
+        printk("Please type the 8.3 directory of the kernel you want to boot,\n");
+        printk("or enter Q to shut down the device.\n");
+        printk("Do not enter drive letters.\n");
+        printk("Max length is 255 characters.");
 
-        // #ifndef DEBUG
-        //     enableLongMode(page_map_level_4, eax, ebx, edx); // idk what edx is doing here im afraid to change it
-        // #endif // DEBUG
+        bool ValidCommand = false;
 
-        // enableLongMode(page_map_level_4, eax, ebx, edx);
-        video[0] = (0x0F << 8) | VERT_RIGHT;
-        video[1] = (0x0F << 8) | RIGHT_ARROW;
-        video[2] = (0x0F << 8) | SPACE;
-        video[3] = (0x0F << 8) | SEVEN;
+        char inputBuffer[256] = {0};
 
-        video[0 + 80] = (0x0F << 8) | VERT_RIGHT;
-        video[1 + 80] = (0x0F << 8) | TRIANGLE_RIGHT;
-        video[2 + 80] = (0x0F << 8) | SPACE;
-        video[3 + 80] = (0x0F << 8) | SEVEN;
+        Disk disk(edx & 0xFF, globalResult_16);
+        // disk.GetSectors(0, 1, (void*)0x7000); // read the first sector of the disk into memory at 0x7000
 
-        video[0 + 80 * 2] = (0x0F << 8) | VERT_RIGHT;
-        video[1 + 80 * 2] = (0x0F << 8) | GREATER_THAN;
-        video[2 + 80 * 2] = (0x0F << 8) | SPACE;
-        video[3 + 80 * 2] = (0x0F << 8) | SEVEN;
+        while (!ValidCommand) {
+            printk("\n");
+            printk("sbl.harukimedia.org# ");
 
-        video[0 + 80 * 3] = (0x0F << 8) | VERT_RIGHT;
-        video[1 + 80 * 3] = (0x0F << 8) | SPACE;
-        video[2 + 80 * 3] = (0x0F << 8) | LEFT_BRACKET;
-        video[3 + 80 * 3] = (0x0F << 8) | SEVEN;
-        video[4 + 80 * 3] = (0x0F << 8) | RIGHT_BRACKET;
+            gets(inputBuffer, 256);
+            printk("\n");
+            char* exitCode = "Q";
+            if (SBL_memcmp(inputBuffer, exitCode, 2) == true) {
+                printk("Shutting down the device...\n");
+                ShutDownPC();
+                printk("Failed to shut down the device (what the fuck)\n");
+                hang();
+            }
+            uint8_t sector[512];
+            disk.GetSectors(0, 1, sector);
+            MBR* mbr = (MBR*)(sector);
+
+            for (auto a : mbr->Partitions) {
+                if (a.isValid() == false) continue;
+                if (a.IsExtended()) {
+                    // todo: handle extended partitions
+                    continue;
+                }
+
+                uint8_t vbrSector[512];
+                disk.GetSectors(a.StartLBA, 1, vbrSector);
+                VBR* vbr = (VBR*)(vbrSector);
+                uint8_t* buffer = (uint8_t*)0xF000;
+                if (vbr->GetFATType() == FATType::FAT12) {
+                    FAT12 fat12(disk, a.StartLBA);
+                    auto packet = fat12.ResolvePath(inputBuffer);
+                    if (packet.directoryState == DirectoryState::Found) {
+                        printk("Found %s.\n", inputBuffer);
+                        if (fat12.ReadFile(packet, buffer, packet.size)) {
+                            printk("File read successfully.\n");
+                            ValidCommand = true;
+                        }
+                        else printk("Failed to read file %s.\n", inputBuffer);
+                    }
+                    else {
+                        printk("Did not find %s\n", inputBuffer);
+                    }
+                }
+                if (vbr->GetFATType() == FATType::FAT16) {
+                    FAT16 fat16(disk, a.StartLBA);
+                    auto packet = fat16.ResolvePath(inputBuffer);
+                    if (packet.directoryState == DirectoryState::Found) {
+                        printk("Found %s.\n", inputBuffer);
+                        if (fat16.ReadFile(packet, buffer, packet.size)) {
+                            printk("File read successfully.\n");
+                            ValidCommand = true;
+                        }
+                        else {
+                            printk("Failed to read file.\n");
+                        }
+                    }
+                    else {
+                        printk("Did not find %s\n", inputBuffer);
+                    }
+                }
+                if (vbr->GetFATType() == FATType::FAT32) {
+                    FAT32 fat32(disk, a.StartLBA);
+                    auto packet = fat32.ResolvePath(inputBuffer);
+                    if (packet.directoryState == DirectoryState::Found) {
+                        printk("Found %s.\n", inputBuffer);
+                        if (fat32.ReadFile(packet, buffer, packet.size)) {
+                            printk("File read successfully.\n");
+                            ValidCommand = true;
+                        }
+                        else {
+                            printk("Failed to read file.\n");
+                        }
+                    }
+                    else {
+                        printk("Did not find %s\n", inputBuffer);
+                    }
+                }
+            }
+
+            printk("Read %s. Request understood and promptly ignored.\n", inputBuffer);
+        }
+
+
 
         // printk(VERT_RIGHT);
         // printk(RIGHT_ARROW);
@@ -135,13 +159,12 @@ void s3_main(uint32_t eax, uint32_t ebx, uint32_t edx) {
         hang(); // if we return from enableLongMode() then something went wrong and we should hang ourselves
     }
     else {
-        // str1 = "what????????????????";
-        // index = 0;
-        // while (str1[index] != '\0') {
-        //     video[index] = (0x0F << 8) | str1[index];
-        //     index++;
-        // }
-        video[0] = (0x0F << 8) | 'w';
+        str1 = "what????????????????";
+        index = 0;
+        while (str1[index] != '\0') {
+            video[index] = (0x0F << 8) | str1[index];
+            index++;
+        }
         hang();
     }
 }
@@ -150,5 +173,6 @@ void hang() {
     // #ifdef DEBUG
     //     printk("SBL: hang called.\n");
     // #endif // DEBUG
+    // ((uint16_t*)(0xB8000))[0] = (0x0F << 8) | 'A';
     while (1) ;
 }

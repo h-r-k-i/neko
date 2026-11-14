@@ -31,7 +31,7 @@ CPUID_RAND_EXT equ 1 << 30
 
 SBL_E820:
     ; mov ax, 0xFFFF
-    ; o32 ret
+    ; retf
     ; variables:
     ; [bp + 0x00]: original base pointer (NOT A VARIABLE DO NOT FUCKING USE)
     ; [bp + 0x02]: return address (see warning above)
@@ -98,11 +98,11 @@ SBL_E820:
         pop di
         pop es
         pop bp
-        o32 ret ; could've just done rets everywhere else this is stupid
+        retf ; could've just done rets everywhere else this is stupid
 
 SBL_E801:
     ; mov ax, 0xFFFF
-    ; o32 ret
+    ; retf
     ; variables:
     ; [bp + 0x00]: original base pointer (NOT A VARIABLE DO NOT FUCKING USE)
     ; [bp + 0x02]: return address (see warning above)
@@ -148,11 +148,11 @@ SBL_E801:
         pop di
         pop es
         pop bp
-        o32 ret
+        retf
 
 SBL_88:
     ; mov ax, 0xFFFF
-    ; o32 ret
+    ; retf
     ; variables:
     ; [bp + 0x00]: original base pointer (NOT A VARIABLE DO NOT FUCKING USE)
     ; [bp + 0x02]: return address (see warning above)
@@ -189,7 +189,7 @@ SBL_88:
         pop di
         pop es
         pop bp
-        o32 ret
+        retf
 
 
 SBL_LM_Entropy:
@@ -266,11 +266,11 @@ SBL_LM_Entropy:
         pop di
         pop es
         pop bp
-        o32 ret
+        retf
 
 PopulateVBEInfo:
     ; mov ax, 0xFFFF
-    ; o32 ret
+    ; retf
     ; variables:
     ; [bp + 0x00]: original base pointer (NOT A VARIABLE DO NOT FUCKING USE)
     ; [bp + 0x02]: return address (see warning above)
@@ -296,11 +296,11 @@ PopulateVBEInfo:
         pop di
         pop es
         pop bp
-        o32 ret
+        retf
 
 PopulateVBEMode:
     ; mov ax, 0xFFFF
-    ; o32 ret
+    ; retf
     ; variables:
     ; [bp + 0x00]: original base pointer (NOT A VARIABLE DO NOT FUCKING USE)
     ; [bp + 0x02]: return address (see warning above)
@@ -329,11 +329,11 @@ PopulateVBEMode:
         pop di
         pop es
         pop bp
-        o32 ret
+        retf
 
 PopulateEDID:
     ; mov ax, 0xFFFF
-    ; o32 ret
+    ; retf
     ; variables:
     ; [bp + 0x00]: original base pointer (NOT A VARIABLE DO NOT FUCKING USE)
     ; [bp + 0x02]: return address (see warning above)
@@ -398,7 +398,7 @@ PopulateEDID:
         pop di
         pop es
         pop bp
-        o32 ret
+        retf
 
 GetDriveParameters:
     ; variables:
@@ -431,7 +431,7 @@ GetDriveParameters:
     pop di
     pop es
     pop bp
-    o32 ret
+    retf
 
 GetSector:
     ; variables:
@@ -465,4 +465,4 @@ GetSector:
         pop di
         pop es
         pop bp
-        o32 ret ; could've just done rets everywhere else this is stupid
+        retf ; could've just done rets everywhere else this is stupid

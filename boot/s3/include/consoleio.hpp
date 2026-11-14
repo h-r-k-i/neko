@@ -37,9 +37,17 @@
 #define VGA_WIDTH 80
 #define VGA_HEIGHT 25
 
+extern "C" uint16_t GetKeyboardInput();
+extern "C" uint16_t EnableCursor();
+extern "C" uint16_t DisableCursor();
+extern "C" uint16_t SetCursorPosition(uint32_t xy);
+
 void printk(char *, ...);
 char * itoa(int32_t, char *);
 char * xtoa(int32_t, char *, uint8_t);
 void scroll(uint8_t);
+
+void gets(char* buffer, uint16_t maxLength, char terminator = '\r');
+
 
 #endif

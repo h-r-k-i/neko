@@ -8,8 +8,11 @@ CFLAGS = -ffreestanding -O2 -Wall -Wextra \
     	 -fno-omit-frame-pointer -fno-stack-protector -fno-pie \
 		 -nostdlib -mno-red-zone -mcmodel=large \
 		 -I./boot/s3/include -I/home/renee/opt/cross/bin/lib/gcc/x86_64-elf/15.2.0/include
-CXXFLAGS = -ffreestanding -O2 -Wall -Wextra -fno-exceptions \
-		   -fno-rtti
+CXXFLAGS = -ffreestanding -Wall -Wextra -fno-exceptions \
+		   -fno-rtti -m16 -mgeneral-regs-only \
+		   -ffreestanding -I./boot/s3/include -DBUILD_DEBUG -I/home/renee/opt/cross/bin/lib/gcc/x86_64-elf/15.2.0/include \
+		   -I/home/renee/opt/cross/bin/x86_64-elf/include/c++/15.2.0 -fno-omit-frame-pointer -fno-stack-protector \
+		   -fno-pie -nostdlib -mno-red-zone
 LDFLAGS = -nostdlib --oformat binary
 
 BUILD_BIN = build
@@ -50,8 +53,8 @@ BOOT3_ELF  = ./$(BUILD_BIN)/s3.elf
 
 BOOT3_LD = ./boot/s3/s3.ld
 
-BOOT3_DISK = ./boot/s3/drivers/disk.s
-BOOT3_DISKO = ./$(BUILD_BIN)/disk.o
+BOOT3_DRVASM = $(wildcard ./boot/s3/drivers/*.s)
+BOOT3_DRVO = $(patsubst ./boot/s3/drivers/%.s,./$(BUILD_BIN)/%.o,$(BOOT3_DRVASM))
 
 INITKERNEL = ./bin/nekotest.s
 IK_OBJ = ./$(BUILD_BIN)/nekotest.o
@@ -93,7 +96,7 @@ $(BOOT2_BIN): $(BOOT2_ELF)
 $(BOOT3_OBJ): $(BOOT3_ASM)
 	nasm -f elf32 $< -o $@
 
-$(BOOT3_DISKO): $(BOOT3_DISK)
+./$(BUILD_BIN)/%.o: ./boot/s3/drivers/%.s
 	nasm -f elf32 $< -o $@
 
 $(IK_OBJ): $(INITKERNEL)
@@ -103,14 +106,13 @@ $(KERNEL_OBJ): $(KERNEL)
 	$(CC) -ffreestanding -m16 -I./boot/s3/include -I/home/renee/opt/cross/bin/lib/gcc/x86_64-elf/15.2.0/include -c $< -o $@
 
 ./$(BUILD_BIN)/s3.cpp.o: $(BOOT3_C)
-	$(CXX) -ffreestanding -m16 -I./boot/s3/include -DBUILD_DEBUG -I/home/renee/opt/cross/bin/lib/gcc/x86_64-elf/15.2.0/include -c $< -o $@
-
+	$(CXX) $(CXXFLAGS) -c $< -o $@
 
 ./$(BUILD_BIN)/%.cpp.o: ./boot/s3/drivers/%.cpp
-	$(CXX) -ffreestanding -m16 -I./boot/s3/include -I/home/renee/opt/cross/bin/lib/gcc/x86_64-elf/15.2.0/include -c $< -o $@
+	$(CXX) $(CXXFLAGS) -c $< -o $@
 
-$(BOOT3_ELF): $(BOOT3_OBJ) $(BOOT3_COBJ) $(BOOT3_DRIV) $(BOOT3_LD) $(BOOT3_DISKO) $(IK_OBJ) $(KERNEL_OBJ)
-	$(LD) -m elf_i386 -T $(BOOT3_LD) -o $@ $(BOOT3_OBJ) $(BOOT3_COBJ) $(BOOT3_DRIV) $(BOOT3_DISKO) $(IK_OBJ) $(KERNEL_OBJ)
+$(BOOT3_ELF): $(BOOT3_OBJ) $(BOOT3_COBJ) $(BOOT3_DRIV) $(BOOT3_LD) $(BOOT3_DRVO) $(IK_OBJ) $(KERNEL_OBJ)
+	$(LD) -m elf_i386 -T $(BOOT3_LD) -o $@ $(BOOT3_OBJ) $(BOOT3_COBJ) $(BOOT3_DRIV) $(BOOT3_DRVO) $(IK_OBJ) $(KERNEL_OBJ)
 
 $(BOOT3_BIN): $(BOOT3_ELF)
 	$(OBJ) -O binary $< $@
@@ -124,13 +126,26 @@ kernel.o: $(KERNEL_C)
 consoleio.o: ./boot/s3/drivers/consoleio.cpp
 	$(CC) $(CFLAGS) -c ./boot/s3/drivers/consoleio.cpp -o consoleio.o
 
-$(KERNEL_BIN): kernel.o consoleio.o
-	$(LD) $(LDFLAGS) -Ttext 0x8000 kernel.o consoleio.o -o $(KERNEL_BIN)
+$(KERNEL_BIN): kernel.o
+	$(LD) $(LDFLAGS) -Ttext 0x8000 kernel.o -o $(KERNEL_BIN)
+
+# $(OS_IMG): $(BOOT_BIN) $(KERNEL_BIN)
+# 	dd if=/dev/zero of=$(OS_IMG) bs=512 count=131072
+# 	printf 'label: dos\nstart=2048, type=e, bootable\n' | sfdisk $(OS_IMG)
+# 	mkfs.fat -F 16 -n "Neko" --offset=2048 $(OS_IMG) # FAT16 because I can't be fucked to expand the drive size to one that can work with FAT32
+# 	dd if=$(BOOT_BIN) of=$(OS_IMG) bs=446 count=1 conv=notrunc
+# 	dd if=$(BOOT_BIN) of=$(OS_IMG) bs=512 skip=1 seek=1 conv=notrunc
+# 	mmd -i $(OS_IMG)@@1048576 ::/BOOT
+# 	mcopy -i $(OS_IMG)@@1048576 $(KERNEL_BIN) ::/BOOT/NEKO.ELF
 
 $(OS_IMG): $(BOOT_BIN) $(KERNEL_BIN)
-	dd if=/dev/zero of=$(OS_IMG) bs=512 count=131072
-	dd if=$(BOOT_BIN) of=$(OS_IMG) conv=notrunc
-	dd if=$(KERNEL_BIN) of=$(OS_IMG) seek=74 conv=notrunc
+	dd if=/dev/zero of=$(OS_IMG) bs=512 count=1000000
+	printf 'label: dos\nstart=2048, type=c, bootable\n' | sfdisk $(OS_IMG)
+	mkfs.fat -F 32 -n "Neko" --offset=2048 $(OS_IMG)
+	dd if=$(BOOT_BIN) of=$(OS_IMG) bs=446 count=1 conv=notrunc
+	dd if=$(BOOT_BIN) of=$(OS_IMG) bs=512 skip=1 seek=1 conv=notrunc
+	mmd -i $(OS_IMG)@@1048576 ::/BOOT
+	mcopy -i $(OS_IMG)@@1048576 $(KERNEL_BIN) ::/BOOT/NEKO.ELF
 
 run: $(OS_IMG)
 	qemu-system-x86_64 -drive format=raw,file=$(OS_IMG),if=ide -serial stdio -m 6G -d int,cpu_reset -no-reboot -D qemu.log -cpu host -accel kvm

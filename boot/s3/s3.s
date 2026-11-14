@@ -1,16 +1,25 @@
-bits 16
+[bits 16]
 global _start
 extern s3_main
 
+%macro cpush 1
+    push word 0
+    push word %1
+%endmacro
+
+%macro ccall 1
+    push word 0
+    call %1
+%endmacro
+
 %if 0
  FILENAME:      ./boot/s3.s
- NAME:          NekoDOS Bootloader, Stage 3.1
- DESCRIPTION:   Exists as a temporary program to
-                verify transfer into Protected Mode
-                and transfer control to s3.cpp.
-                A stub, basically.
+ NAME:          SBL, Stage 3
+ DESCRIPTION:   Does the part where I pretend my problems don't exist
+                and does a bunch of unreal mode prep before handing 
+                over control to the kernel.
  AUTHOR:        Haruki Tokumei, Haruki Media Group
- DATE:          29 January 2026
+ DATE:          12 November 2026
  COPYRIGHT:     Haruki Media Group
  LICENSE:       MIT License (./LICENSE)
 %endif
@@ -18,36 +27,24 @@ extern s3_main
 section .text
 
 _start:
-    ; cli
+    cli
     cld
+    mov  esp, 0xF000
 
-    ; jmp hang
-    
-    mov [boot_eax], eax
-    mov [boot_ebx], ebx
-    and edx, 0x000000FF
-    mov [boot_edx], edx
-    
-    xor ax, ax
-    mov ds, ax
-    mov es, ax
-    mov fs, ax
-    mov gs, ax
-    mov ss, ax
+    mov  [boot_eax], eax
+    mov  [boot_ebx], ebx
+    and  edx, 0xFF
+    mov  [boot_edx], edx
 
-    mov sp, 0xF000
-
-    ; mov ax, 0x0761 ; white on black 'a'
+    ; mov ax, 0x0F41 ; white on black 'A'
     ; mov ebx, 0xB8000
     ; mov [ebx], ax
-    ; jmp $
-
+    ; ; jmp $
 
     push dword [boot_edx]
     push dword [boot_ebx]
     push dword [boot_eax]
-    push word 0
-    call s3_main
+    ccall s3_main
 
 hang:
     mov ah, 0x13
@@ -70,12 +67,18 @@ a3l equ $ - a3
 
 row: db 0
 
+gdtinfo:
+    dw gdt_end - gdt - 1
+    dd gdt
+
+gdt:
+    dq 0x0000000000000000   ; null descriptor
+    dq 0x00009A000000FFFF   ; flat code segment
+    dq 0x00CF92000000FFFF   ; flat data segment
+gdt_end:
+
 section .bss
 align 4
 boot_eax resd 1
 boot_ebx resd 1
 boot_edx resd 1
-
-section .text
-times (0xC800 - 0x8000) - ($ - $$) - 4 db 1
-dd 0x75726168

@@ -37,6 +37,17 @@ void printk(char * format, ...) {
         else if (format[i] == '\t') {
             x += 3;
         }
+        else if (format[i] == '\b') {
+            if (x > 0) {
+                x--;
+            }
+            else if (x == 0 && y > 0) {
+                y--;
+                x = 79;
+            }
+            i++;
+            continue;
+        }
         else if (format[i] == '%') {
             if (format[i + 1] == '%' || (args_consumed >= expected_args)) {
                 i++;
@@ -67,6 +78,12 @@ void printk(char * format, ...) {
                 char * stringk = va_arg(args, char *);
                 printk(stringk);
                 x--;
+                args_consumed++;
+            }
+            else if (format[i + 1] == 'c') {
+                i++;
+                char value = (char)va_arg(args, int);
+                video[y * 80 + x] = (((BLACK << 4) | WHITE) << 8) | value;
                 args_consumed++;
             }
             else
@@ -154,4 +171,35 @@ void scroll(uint8_t lines) {
     for (int i = 0; i < VGA_HEIGHT * VGA_WIDTH; i++) {
         video[i] = video[VGA_WIDTH * lines + i];
     }
+}
+
+void gets(char* buffer, uint16_t maxLength, char terminator) {
+    EnableCursor();
+    SetCursorPosition((x << 16) | y);
+    video[y * 80 + x] = (((BLACK << 4) | WHITE) << 8);
+    uint16_t index = 0;
+    while (index < maxLength) {
+        uint16_t input = GetKeyboardInput();
+        char c = (char)(input & 0xFF);
+        if (c == 0 || c == 0xE0) continue; // ignore null and extended keys
+        if (c == '\b') {
+            if (index > 0) {
+                index--;
+                printk("\b \b");
+                SetCursorPosition((x << 16) | y);
+                video[y * 80 + x] = (((BLACK << 4) | WHITE) << 8);
+            }
+            continue;
+        }
+        if (c == terminator) {
+            buffer[index] = '\0';
+            break;
+        }
+        if (c == '\r') printk("\n");
+        printk("%c", (uint8_t)input);
+        buffer[index++] = c;
+        SetCursorPosition((x << 16) | y);
+        video[y * 80 + x] = (((BLACK << 4) | WHITE) << 8);
+    }
+    DisableCursor();
 }

@@ -1,16 +1,14 @@
 [bits 16]
 
 %if 0
- FILENAME:      ./boot/s2/s2func.s
- NAME:          SBL, Stage 2 Functions
- DESCRIPTION:   Helper functions for the second-stage bootloader.
-                Especially relied upon by s2.c.
+ FILENAME:      ./boot/s3/drivers/disk.s
+ NAME:          SBL, Stage 3 disk driver functions
+ DESCRIPTION:   Have you ever cooked half a brick in the air fryer?
  AUTHOR:        Haruki Tokumei, Haruki Media Group
- DATE:          25 August 2025
+ DATE:          13 November 2026
  COPYRIGHT:     Haruki Media Group (notably a lot of this is still MIT license)
  LICENSE:       MIT License (./LICENSE)
- NOTE:          so much make bullshit please im gonna fucking break 
-                every one of my bones
+ NOTE:          none
 %endif
 
 ; renamed arg_segment because segment is an actual nasm keyword
@@ -51,7 +49,7 @@ GetDriveParameters:
     pop di
     pop es
     pop bp
-    o32 ret
+    retf
 
 GetSector:
     ; variables:
@@ -85,4 +83,4 @@ GetSector:
         pop di
         pop es
         pop bp
-        o32 ret ; could've just done rets everywhere else this is stupid
+        retf ; could've just done rets everywhere else this is stupid
